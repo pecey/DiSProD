@@ -1,0 +1,20 @@
+env_name: sparse-continuous-mountain-car-v1
+env_entry_point: env.sparse_continuous_mountain_car:Continuous_MountainCarEnv
+max_episode_steps: 200
+depth: 100
+reward_fn: env.reward_fns:continuous_mountain_car_sparse
+discrete: False
+render: True
+reward_sparsity: 1
+
+cem:
+  n_samples: 200
+
+mppi:
+  n_samples: 200
+  gamma: 10.0
+
+disprod:
+  step_size: 1
+  step_size_var: 0.1
+  n_restarts: 200

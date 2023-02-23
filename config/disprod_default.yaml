@@ -1,0 +1,9 @@
+save_actions: True
+reward_fn: ???
+nn_model: ???
+run_mode: production
+convergance_threshold: 0.1
+preprocessing_fn: env.preprocessing_fns:no_preprocessing
+postprocessing_fn: env.postprocessing_fns:no_postprocessing
+debug_planner: True
+

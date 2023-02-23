@@ -1,0 +1,14 @@
+env_name: continuous-dubins-car-v0
+env_entry_point: env.continuous_dubins_racing:ContinuousDubinsCar
+max_episode_steps: 5000
+depth: 50
+reward_fn: env.reward_fns:dubins_racing
+discrete: False
+render: True
+run_mode: production
+convergance_threshold: 0.05
+
+disprod:
+  step_size: 10
+  step_size_var: 1
+  n_restarts: 100

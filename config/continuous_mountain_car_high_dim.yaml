@@ -1,0 +1,20 @@
+env_name: continuous-mountain-car-v3
+env_entry_point: env.continuous_mountain_car_high_dim:Continuous_MountainCarEnvHighDim
+max_episode_steps: 200
+depth: 100
+reward_fn: env.reward_fns:continuous_mountain_car_high_dim
+discrete: False
+render: True
+reward_sparsity: 1
+
+cem:
+  n_samples: 200
+
+mppi:
+  n_samples: 200
+  gamma: 10.0
+
+disprod:
+  step_size: 0.1
+  step_size_var: 0.01
+  n_restarts: 200

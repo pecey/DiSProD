@@ -1,0 +1,16 @@
+float64 x_pos
+float64 y_pos
+float64 z_pos
+float64 pitch
+float64 roll
+float64 yaw
+float64 q0
+float64 q1
+float64 q2
+float64 q3
+float64 x_vel
+float64 y_vel
+float64 z_vel
+float64 u_x
+float64 u_y
+float64 y_der

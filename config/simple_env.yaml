@@ -1,0 +1,24 @@
+env_name: simple-env-v1
+env_entry_point: env.simple_env:SimpleEnv
+max_episode_steps: 75
+depth: 20
+reward_fn: env.reward_fns:simple_env
+discrete: False
+render: True
+plot_imagined_trajectory: True
+convergance_threshold: 0.05
+reward_sparsity: 1
+
+cem:
+  n_samples: 200
+
+mppi:
+  n_samples: 200
+  gamma: 1.0
+
+disprod:
+  step_size: 0.01
+  step_size_var: 0.001
+  n_restarts: 50
+  reward_fn_using_taylor: True
+  choose_action_mean: False

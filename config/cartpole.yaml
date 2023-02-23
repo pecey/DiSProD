@@ -1,0 +1,12 @@
+env_name: cartpole-v1
+env_entry_point: env.cartpole:CartPoleEnv
+max_episode_steps: 200
+depth: 25
+reward_fn: env.reward_fns:cartpole_leaky
+discrete: True
+render: True
+
+disprod:
+  n_restarts: 200
+  step_size: 1
+  step_size_var: 0.1

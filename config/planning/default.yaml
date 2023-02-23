@@ -1,0 +1,4 @@
+transition_fn: ???
+nn_model: False
+model: ???
+save_as_gif: False

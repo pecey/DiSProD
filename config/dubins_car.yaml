@@ -1,0 +1,12 @@
+env_name: dubins-car-v0
+env_entry_point: env.dubins_car:DubinsCar
+max_episode_steps: 40
+depth: 15
+reward_fn: env.reward_fns:dubins_car_leaky
+discrete: True
+render: True
+
+disprod:
+  step_size: 0.1
+  step_size_var: 0.01
+  n_restarts: 10

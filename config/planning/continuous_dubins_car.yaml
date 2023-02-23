@@ -1,0 +1,4 @@
+transition_fn: env.transition_fns:continuous_dubins_car
+add_obstacles: True
+obstacles_config_path: ???
+model: clip_dubins_car

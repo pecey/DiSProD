@@ -1,0 +1,36 @@
+env_name: ???
+env_entry_point: ???
+max_episode_steps: ???
+depth: ???
+reward_fn: ???
+discrete: ???
+n_episodes: 5
+debug_planner: False
+render: False
+seed: 42
+log_file: null
+plot_imagined_trajectory: False
+# alpha is the multiplier for injecting Gaussian noise into the system
+alpha: 0
+
+log_to_wandb: False
+
+cem:
+  n_samples: 200
+  optimization_steps: 10
+  elite_size: 20
+
+mppi:
+  n_samples: 2000
+  optimization_steps: 10
+  gamma: 1.0
+
+disprod:
+  step_size: 10
+  step_size_var: 1
+  n_restarts: 200
+  choose_action_mean: False
+  reward_fn_using_taylor: True
+  max_grad_steps: 10
+  # Modes: complete, action_var_only, no_var
+  taylor_expansion_mode: complete

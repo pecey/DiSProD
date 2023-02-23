@@ -1,0 +1,30 @@
+env_name: continuous-dubins-car-w-velocity-state-v0
+env_entry_point: env.continuous_dubins_car_w_velocity_state:ContinuousDubinsCar
+max_episode_steps: 200
+n_restarts: 400
+depth: 100
+lr: 1
+reward_fn: env.reward_fns:continuous_dubins_car_w_velocity_leaky
+discrete: False
+noise: False
+log_file: None
+render: True
+dynamic_lr: False
+debug: True
+add_obstacles: True
+obstacles_config_path: ???
+run_mode: production
+plot_imagined_trajectory: True
+env_file: env.dubins_env_properties_w_velocity:EnvironmentProperties
+vehicle_model: turtlebot ## or jackal
+ros_interface: planners.ros_interface:plan_one_step_dubins_car_w_velocity
+baseline_ros_interface: planners.ros_interface:plan_one_step_dubins_car_w_velocity
+fixed_time_pub_mode: False
+
+
+
+
+mppi:
+  n_samples: 400
+  gamma: 10000
+

@@ -1,0 +1,19 @@
+env_name: pendulum-v2
+env_entry_point: env.pendulum:PendulumEnv
+max_episode_steps: 200
+depth: 25
+reward_fn: env.reward_fns:pendulum
+discrete: False
+render: True
+
+cem:
+  n_samples: 200
+
+mppi:
+  n_samples: 200
+  gamma: 1.0
+
+disprod:
+  step_size: 1
+  step_size_var: 0.1
+  n_restarts: 200

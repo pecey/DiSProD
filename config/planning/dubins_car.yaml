@@ -1,0 +1,3 @@
+transition_fn: env.transition_fns:dubins_car
+add_obstacles: True
+obstacles_config_path: ???
