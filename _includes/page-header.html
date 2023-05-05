@@ -1,0 +1,15 @@
+<section class="page-header" role="banner">
+  <a href="{{ site.repo }}"><img decoding="async" loading="lazy" width="149" height="149" src="https://github.blog/wp-content/uploads/2008/12/forkme_left_orange_ff7600.png?resize=149%2C149" class="attachment-full size-full fork-ribbon" alt="Fork me on GitHub" data-recalc-dims="1"></a>
+
+    <!-- <img src="{{ site.baseurl }}/assets/trident.png" width="100" height="100"> -->
+    <h1 class="project-name">{{ site.title }}</h1>
+    <h2 class="authors">
+      {% for author in site.authors %}
+        <a href="{{ author.website }}">{{ author.name }}</a>
+      {% endfor %}
+    </h2>
+    <a href="{{ site.arxiv }}" class="btn">Paper</a>
+    <a href="{{ site.repo }}" class="btn">Code</a>
+    <!-- <a href="{{ site.repo }}/zipball/master" class="btn">Download .zip</a>
+    <a href="{{ site.repo }}/tarball/master" class="btn">Download .tar.gz</a> -->
+  </section>

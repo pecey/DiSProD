@@ -1,0 +1,17 @@
+title: "DiSProD: Differentiable Symbolic Propagation of Distributions for Planning"
+authors: 
+  - name: Palash Chatterjee
+    website: "https://pecey.github.io/"
+  - name: Ashutosh Chapagain
+    website: "https://itsmeashutosh43.github.io/about/"
+  - name: Weizhe Chen
+    website: "http://weizhechen.com/"
+  - name: Roni Khardon
+    website: "https://cgi.luddy.indiana.edu/~rkhardon"
+description: >- # this means to ignore newlines until "baseurl:"
+  DiSProD is an online planner developed for environments with probabilistic transitions in continuous state and action spaces. DiSProD builds a symbolic graph that captures the distribution of future trajectories, conditioned on a given policy, using independence assumptions and approximate propagation of distributions. The symbolic graph provides a differentiable representation of the policy’s value, enabling efficient gradient-based optimization for long-horizon search. The propagation of approximate distributions can be seen as an aggregation of many trajectories, making it well-suited for dealing with sparse rewards and stochastic environments.
+baseurl: "" # the subpath of your site, e.g. /blog
+url: "" # the base hostname & protocol for your site, e.g. http://example.com
+repo: "https://github.com/pecey/DiSProD"
+
+arxiv: https://arxiv.org/abs/2302.01491
