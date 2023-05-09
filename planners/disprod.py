@@ -6,7 +6,7 @@ from functools import partial
 
 
 class Disprod:
-    def __init__(self, env, cfg, key):
+    def __init__(self, env, cfg):
         self.env = env
         self.ns_fn = load_method(cfg.get('transition_fn'))
         if cfg["env_name"] in ["sparse-continuous-mountain-car-v1", "simple-env-v1"]:
@@ -16,7 +16,7 @@ class Disprod:
 
         self.nA = env.action_space.n if cfg["discrete"] else env.action_space.shape[0]
         self.nS = cfg.get("nS_out", env.observation_space.shape[0])
-        
+
         self.max_grad_steps = cfg["disprod"]["max_grad_steps"]
 
         self.n_restarts = cfg["disprod"]["n_restarts"]

@@ -9,9 +9,9 @@ from planners.disprod import Disprod
 
 
 class ContinuousDisprod(Disprod):
-    def __init__(self, env, cfg, key):
+    def __init__(self, env, cfg):
 
-        super(ContinuousDisprod, self).__init__(env, cfg, key)
+        super(ContinuousDisprod, self).__init__(env, cfg)
         self.ac_lb = env.action_space.low
         self.ac_ub = env.action_space.high
         
@@ -288,7 +288,7 @@ def reward_comp(reward_fn, env):
         reward_mu = reward_fn(s_mu, ac_mu, env)
         def _diag_hessian(wrt):
             hess = jax.hessian(reward_fn, wrt)(s_mu, ac_mu, env)
-            return jax.numpy.diagonal(hess, axis1=1, axis2=2)
+            return jax.numpy.diagonal(hess, axis1=0, axis2=1)
         sop_wrt_s = _diag_hessian(0)
         sop_wrt_ac = _diag_hessian(1)
 

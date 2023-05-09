@@ -5,7 +5,7 @@ import jax
 import jax.numpy as jnp
 import numpy as np
 
-from utils.reward_utils import angle_normalize, euclidean_distance, get_number_of_collisions, greater_than_or_eq_to, is_elliptical_between, is_elliptical_limits_outside
+from utils.reward_utils import angle_normalize, euclidean_distance, get_number_of_collisions, greater_than_or_eq_to
 
 #######################################
 # Simple Env

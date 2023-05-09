@@ -28,7 +28,7 @@ disprod:
   step_size_var: 1
   n_restarts: 200
   choose_action_mean: False
-  reward_fn_using_taylor: False
+  reward_fn_using_taylor: True
   max_grad_steps: 10
   # Modes: complete, action_var_only, no_var
   taylor_expansion_mode: complete

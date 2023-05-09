@@ -46,10 +46,6 @@ def continuous_dubins_car(state, actions, env, alpha=0.0):
     velocity, angular_velocity = actions
     return _dubins_car(env, state, velocity, angular_velocity, alpha)
 
-def continuous_dubins_car_racing(state, actions, env, alpha=0.0):
-    velocity, angular_velocity = actions
-    return _dubins_car_racing(env, state, velocity, angular_velocity * env.angular_velocity_multiplier, alpha)
-
 
 def continuous_dubins_car_w_velocity_state(state, actions, env, alpha=0.0):
     delta_velocity, delta_angular_velocity = actions
