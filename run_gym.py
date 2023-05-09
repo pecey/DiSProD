@@ -16,6 +16,14 @@ DISPROD_PATH = os.getenv("DISPROD_PATH")
 sys.path.append(DISPROD_PATH)
 DISPROD_CONF_PATH = os.path.join(DISPROD_PATH, "config")
 
+ENV_MAPPING = { "ccp"   : "continuous_cartpole",
+                "cmc"   : "continuous_mountain_car", 
+                "p"     : "pendulum",
+                "ccph"  : "continuous_cartpole_hybrid", 
+                "scmc"  : "sparse_continuous_mountain_car", 
+                "cdc"   : "continuous_dubins_car",
+                "cmchd" : "continuous_mountain_car_high_dim"}
+
 def run(cfg, queue, n_episodes, seeds):
     scores = []
     for idx in range(n_episodes):
@@ -68,6 +76,7 @@ def run(cfg, queue, n_episodes, seeds):
 
 
 def main(args):
+    args.env_name = ENV_MAPPING[args.env]
     cfg = prepare_config(args.env_name, "planning", DISPROD_CONF_PATH)
     cfg = update_config_with_args(cfg, args, base_path=DISPROD_PATH)
     run_name = cfg["run_name"]
@@ -130,9 +139,7 @@ def setup_virtual_display():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env_name', type=str, choices=['continuous_cartpole', 'continuous_mountain_car', 'pendulum', 
-                                                         'continuous_cartpole_hybrid', 'sparse_continuous_mountain_car', 'continuous_dubins_car',
-                                                         'continuous_mountain_car_high_dim'], required=True)
+    parser.add_argument('--env', type=str, choices=["ccp", "cmc", "p", "ccph", "scmc", "cdc", "cmchd"], required=True)
     parser.add_argument('--render', type=str, default="True")
     parser.add_argument('--seed', type=int, help='Seed for PRNG', default=42)
     parser.add_argument('--run_name', type=str, help='Run Name', default=str(int(time.time())))
