@@ -12,7 +12,7 @@ class DiscreteDisprod(Disprod):
         super(DiscreteDisprod, self).__init__(env, cfg, key)
 
         if not self.nn_model:
-            self.first_partials_fn = jax.jacfwd(self.next_state, argnums=(0, 1))
+            self.first_partials_fn = jax.jacfwd(self.ns_fn, argnums=(0, 1))
 
         self.q_jit = jax.jit(self.q_for_a_restart)
         self.init_action_jit = jax.jit(self.initialize_conformant_actions)
@@ -27,9 +27,9 @@ class DiscreteDisprod(Disprod):
     # Computes the diagonal of hessian.
     def diag_of_hessian(self, s, a, wrt):
         if self.nn_model:
-            stacked_hessian = self.hessian(self.next_state, wrt)(s, a)
+            stacked_hessian = self.hessian(self.ns_fn, wrt)(s, a)
         else:
-            stacked_hessian = self.hessian(self.next_state, wrt)(s, a, self.env)
+            stacked_hessian = self.hessian(self.ns_fn, wrt)(s, a, self.env)
         return jax.numpy.diagonal(stacked_hessian, axis1=1, axis2=2)
 
     def set_goal(self, goal_position):
@@ -175,7 +175,7 @@ class DiscreteDisprod(Disprod):
 
     def computation_graph(self, d, params):
         agg_reward, state_expectation, state_variance, actions, state_expectation_list, model_params = params
-        reward = self.reward_marginal(state_expectation, actions[d, :], self.env)
+        reward = self.reward_fn(state_expectation, actions[d, :], self.env)
         state_expectation, state_variance = self.next_state_expectation_and_variance(
                 state_expectation, state_variance,
                 actions[d, :], model_params)
@@ -239,11 +239,11 @@ class DiscreteDisprod(Disprod):
     def next_state_for_nn(self, operands):
         state, actions, model_params = operands
         final_actions = self.postprocessing_fn(self.env, state, actions)
-        return self.next_state(state, final_actions, model_params)
+        return self.ns_fn(state, final_actions, model_params)
 
     def next_state_for_exact_fn(self, operands):
         state, actions, _ = operands
-        return self.next_state(state, actions, self.env)
+        return self.ns_fn(state, actions, self.env)
     
 
     def get_first_order_partials(self, state_means, action_means, model_params = None):

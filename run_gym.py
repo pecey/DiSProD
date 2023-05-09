@@ -8,7 +8,7 @@ import jax
 from utils.common_utils import print_, save_frames_as_gif, setup_environment, set_global_seeds, prepare_config, update_config_with_args, setup_output_dirs
 import time
 import os
-from planners.gym_interface import setup_planner, plan_one_step
+from planners.gym_interface import setup_planner
 from omegaconf import OmegaConf
 from scipy.io import savemat
 
@@ -30,19 +30,19 @@ def run(cfg, queue, n_episodes, seeds):
 
         # Reset everything
         obs = env.reset()
-        agent.reset()
+        ac_seq, key = agent.reset(key)
+        # agent.reset()
         frames = []
-        print(obs)
-        actions = [0.664468, 0.48521814, -1.5578548, -4.967295, -2.045027, 1.9379476] 
         while not done:
-            _, imagined_trajectory = plan_one_step(agent, env, obs)
-            action = np.array([actions[n_step]])
+            # _, imagined_trajectory = agent.choose_action(agent, env, obs)
+            action, ac_seq, key = agent.choose_action(obs, ac_seq, key)
+            # action, _ = agent.choose_action(obs)
             n_step += 1
             print(f"Step: {n_step}, State: {obs}, Action: {action}")
             if cfg['debug_planner']:
                 print_(f"Step: {n_step}, State: {obs}, Action: {action}", cfg['log_file'])
-            if cfg["plot_imagined_trajectory"]:
-                env.set_imagined_trajectory_data(imagined_trajectory)
+            # if cfg["plot_imagined_trajectory"]:
+            #     env.set_imagined_trajectory_data(imagined_trajectory)
             if cfg['render']:
                 env.render()
             if cfg['save_as_gif']:
@@ -130,7 +130,9 @@ def setup_virtual_display():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env_name', type=str, required=True)
+    parser.add_argument('--env_name', type=str, choices=['continuous_cartpole', 'continuous_mountain_car', 'pendulum', 
+                                                         'continuous_cartpole_hybrid', 'sparse_continuous_mountain_car', 'continuous_dubins_car',
+                                                         'continuous_mountain_car_high_dim'], required=True)
     parser.add_argument('--render', type=str, default="True")
     parser.add_argument('--seed', type=int, help='Seed for PRNG', default=42)
     parser.add_argument('--run_name', type=str, help='Run Name', default=str(int(time.time())))

@@ -4,7 +4,7 @@ max_episode_steps: ???
 depth: ???
 reward_fn: ???
 discrete: ???
-n_episodes: 5
+n_episodes: 1
 debug_planner: False
 render: False
 seed: 42
@@ -12,8 +12,6 @@ log_file: null
 plot_imagined_trajectory: False
 # alpha is the multiplier for injecting Gaussian noise into the system
 alpha: 0
-
-log_to_wandb: False
 
 cem:
   n_samples: 200
@@ -30,7 +28,8 @@ disprod:
   step_size_var: 1
   n_restarts: 200
   choose_action_mean: False
-  reward_fn_using_taylor: True
+  reward_fn_using_taylor: False
   max_grad_steps: 10
   # Modes: complete, action_var_only, no_var
   taylor_expansion_mode: complete
+  convergance_threshold: 0.1

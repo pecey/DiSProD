@@ -18,7 +18,7 @@ class ContinuousDisprodHybrid(Disprod):
         self.multiplicative_factor = self.high_action - self.low_action
 
         if not self.nn_model:
-            self.first_partials_fn = jax.jacfwd(self.next_state, argnums=(0, 1))
+            self.first_partials_fn = jax.jacfwd(self.ns_fn, argnums=(0, 1))
 
 
         if self.nn_model:
@@ -55,9 +55,9 @@ class ContinuousDisprodHybrid(Disprod):
     # Computes the diagonal of hessian.
     def diag_hessian_of_transition(self, s, a, wrt):
         if self.nn_model:
-            stacked_hessian = self.hessian(self.next_state, wrt)(s, a)
+            stacked_hessian = self.hessian(self.ns_fn, wrt)(s, a)
         else:
-            stacked_hessian = self.hessian(self.next_state, wrt)(s, a, self.env, self.alpha)
+            stacked_hessian = self.hessian(self.ns_fn, wrt)(s, a, self.env, self.alpha)
         return jax.numpy.diagonal(stacked_hessian, axis1=1, axis2=2)
 
     # TODO : Should be ideally part of env
@@ -371,7 +371,7 @@ class ContinuousDisprodHybrid(Disprod):
     @partial(jax.jit, static_argnums=(0,))
     def next_state_for_exact_fn(self, operands):
         state, actions = operands
-        return self.next_state(state, actions, self.env, self.alpha)
+        return self.ns_fn(state, actions, self.env, self.alpha)
 
     
     # Functions for computing partials
@@ -426,7 +426,7 @@ class ContinuousDisprodHybrid(Disprod):
     
     # Computes the diagonal of hessian. Need to add sparsity multiplier.
     def diag_hessian_of_reward(self, s, a, wrt):
-        stacked_hessian = self.hessian(self.reward_marginal, wrt)(s, a, self.env)
+        stacked_hessian = self.hessian(self.reward_fn, wrt)(s, a, self.env)
         return jax.numpy.diagonal(stacked_hessian, axis1=0, axis2=1)
 
     def second_order_partials_for_reward(self, operands):
@@ -436,10 +436,10 @@ class ContinuousDisprodHybrid(Disprod):
         return sop_wrt_state, sop_wrt_action 
 
     def reward_fn_non_taylor(self, s_mean, s_var, a_mean, a_var, env):
-        return self.reward_marginal(s_mean, a_mean, env)
+        return self.reward_fn(s_mean, a_mean, env)
 
     def reward_fn_taylor(self, s_mean, s_var, a_mean, a_var, env):
-        reward_for_mean_tau = self.reward_marginal(s_mean, a_mean, env)
+        reward_for_mean_tau = self.reward_fn(s_mean, a_mean, env)
         
         (sop_wrt_state, sop_wrt_action) = self.second_order_partials_for_reward((s_mean, a_mean))
 

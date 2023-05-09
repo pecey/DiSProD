@@ -70,7 +70,7 @@ class CartPoleEnv(gym.Env):
     metadata = {"render.modes": [
         "human", "rgb_array"], "video.frames_per_second": 50}
 
-    def __init__(self, alpha=0.0, ignore_shaky_in_planner=False):
+    def __init__(self, alpha=0.0):
         self.gravity = 9.8
         self.masscart = 1.0
         self.masspole = 0.1
@@ -90,9 +90,7 @@ class CartPoleEnv(gym.Env):
         # Region to the left of this is low reward region
         self.reward_marker = 0.5
         self.alpha = alpha
-        
-        self.ignore_bin_var_in_planner = ignore_shaky_in_planner
-        
+                
         # Angle limit set to 2 * theta_threshold_radians so failing observation
         # is still within bounds.
         low = np.array(

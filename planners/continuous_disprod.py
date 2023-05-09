@@ -13,25 +13,22 @@ class ContinuousDisprod(Disprod):
         super(ContinuousDisprod, self).__init__(env, cfg, key)
         self.low_action = self.env.action_space.low
         self.high_action = self.env.action_space.high
+
+        self.key = key
         
         # Multiplicative factor used to transform free_action variables to the legal range.
         self.multiplicative_factor = self.high_action - self.low_action
 
-        if not self.nn_model:
-            self.first_partials_fn = jax.jacfwd(self.next_state, argnums=(0, 1))
+       
+        self.first_partials_fn = jax.jacfwd(self.ns_fn, argnums=(0, 1))
 
-
-        if self.nn_model:
-            self.next_state_fn = self.next_state_for_nn
-            self.partials_fn = self.partials_for_nn
-        else:
-            self.next_state_fn = self.next_state_for_exact_fn
-            self.partials_fn = self.partials_for_exact_fn
+        self.next_state_fn = self.next_state_for_exact_fn
+        self.partials_fn = self.partials_for_exact_fn
             
         if cfg['disprod']['reward_fn_using_taylor']:
-            self.reward_fn = self.reward_fn_taylor
+            self.reward_dist_fn = self.reward_fn_taylor
         else:
-            self.reward_fn = self.reward_fn_non_taylor
+            self.reward_dist_fn = self.reward_fn_non_taylor
             
         self.converged_jit = jax.jit(lambda x , thresh : jnp.max(jnp.abs(x)) < thresh)
 
@@ -49,6 +46,7 @@ class ContinuousDisprod(Disprod):
             raise Exception(f"Unknown value for config taylor_expansion_mode. Got {cfg['taylor_expansion_mode']}")
         
         self.reset()
+        self.run_mode="production"
             
     # Computes the second order derivatives of a vector
     def hessian(self, fn, wrt):
@@ -56,10 +54,7 @@ class ContinuousDisprod(Disprod):
         
     # Computes the diagonal of hessian.
     def diag_hessian_of_transition(self, s, a, wrt):
-        if self.nn_model:
-            stacked_hessian = self.hessian(self.next_state, wrt)(s, a)
-        else:
-            stacked_hessian = self.hessian(self.next_state, wrt)(s, a, self.env, self.alpha)
+        stacked_hessian = self.hessian(self.ns_fn, wrt)(s, a, self.env, self.alpha)
         return jax.numpy.diagonal(stacked_hessian, axis1=1, axis2=2)
 
     # TODO : Should be ideally part of env
@@ -69,7 +64,7 @@ class ContinuousDisprod(Disprod):
     def update_model(self, model):
         self.model = model
 
-    def reset(self):
+    def reset(self, key):
         self.key, subkey = jax.random.split(self.key)
         self.saved_restart = jax.random.uniform(subkey, shape=(self.depth, self.nA))
 
@@ -228,7 +223,7 @@ class ContinuousDisprod(Disprod):
         agg_reward, state_expectation, state_variance, action_means, action_variance, trajectory = params
         
         # Compute immediate reward
-        reward = self.reward_fn(state_expectation, state_variance, action_means[d, :], action_variance[d, :], self.env)
+        reward = self.reward_dist_fn(state_expectation, state_variance, action_means[d, :], action_variance[d, :], self.env)
         
         # Compute next state expectation
         state_expectation, state_variance = self.next_state_expectation_and_variance(
@@ -345,7 +340,7 @@ class ContinuousDisprod(Disprod):
     @partial(jax.jit, static_argnums=(0,))
     def next_state_for_exact_fn(self, operands):
         state, actions = operands
-        return self.next_state(state, actions, self.env, self.alpha)
+        return self.ns_fn(state, actions, self.env, self.alpha)
 
     
     # Functions for computing partials
@@ -400,7 +395,7 @@ class ContinuousDisprod(Disprod):
     
     # Computes the diagonal of hessian. Need to add sparsity multiplier.
     def diag_hessian_of_reward(self, s, a, wrt):
-        stacked_hessian = self.hessian(self.reward_marginal, wrt)(s, a, self.env)
+        stacked_hessian = self.hessian(self.reward_fn, wrt)(s, a, self.env)
         return jax.numpy.diagonal(stacked_hessian, axis1=0, axis2=1)
 
     def second_order_partials_for_reward(self, operands):
@@ -410,10 +405,10 @@ class ContinuousDisprod(Disprod):
         return sop_wrt_state, sop_wrt_action 
 
     def reward_fn_non_taylor(self, s_mean, s_var, a_mean, a_var, env):
-        return self.reward_marginal(s_mean, a_mean, env)
+        return self.reward_fn(s_mean, a_mean, env)
 
     def reward_fn_taylor(self, s_mean, s_var, a_mean, a_var, env):
-        reward_for_mean_tau = self.reward_marginal(s_mean, a_mean, env)
+        reward_for_mean_tau = self.reward_fn(s_mean, a_mean, env)
         
         (sop_wrt_state, sop_wrt_action) = self.second_order_partials_for_reward((s_mean, a_mean))
 
