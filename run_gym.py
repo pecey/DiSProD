@@ -19,10 +19,10 @@ DISPROD_CONF_PATH = os.path.join(DISPROD_PATH, "config")
 ENV_MAPPING = { "ccp"   : "continuous_cartpole",
                 "cmc"   : "continuous_mountain_car", 
                 "p"     : "pendulum",
-                "ccph"  : "continuous_cartpole_hybrid", 
-                "scmc"  : "sparse_continuous_mountain_car", 
+                "ccp_h"  : "continuous_cartpole_hybrid", 
+                "cmc_sp"  : "sparse_continuous_mountain_car", 
                 "cdc"   : "continuous_dubins_car",
-                "cmchd" : "continuous_mountain_car_high_dim"}
+                "cmc_hd" : "continuous_mountain_car_high_dim"}
 
 def run(cfg, queue, n_episodes, seeds):
     scores = []
@@ -138,7 +138,7 @@ def setup_virtual_display():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, choices=["ccp", "cmc", "p", "ccph", "scmc", "cdc", "cmchd"], required=True)
+    parser.add_argument('--env', type=str, choices=["ccp", "cmc", "p", "ccp_h", "cmc_sp", "cdc", "cmc_hd"], required=True)
     parser.add_argument('--render', type=str, default="True")
     parser.add_argument('--seed', type=int, help='Seed for PRNG', default=42)
     parser.add_argument('--run_name', type=str, help='Run Name', default=str(int(time.time())))
