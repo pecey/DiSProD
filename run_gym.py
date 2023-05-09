@@ -84,7 +84,7 @@ def main(args):
     if args.headless.lower() == "true" and cfg["save_as_gif"]:
         setup_virtual_display()
 
-    setup_output_dirs(cfg, run_name, DISPROD_PATH, setup_for_learning=False)
+    setup_output_dirs(cfg, run_name, DISPROD_PATH)
 
     base_seed = cfg["seed"]
     partitions = np.minimum(mp.cpu_count(), cfg["n_episodes"])

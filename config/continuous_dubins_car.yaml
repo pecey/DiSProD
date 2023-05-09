@@ -4,7 +4,7 @@ max_episode_steps: 200
 n_restarts: 100
 depth: 100
 lr: 0.25
-reward_fn: env.reward_fns:continuous_dubins_car_leaky
+reward_fn: env.reward_fns:continuous_dubins_car
 ros_interface: planners.ros_interface:sogbofa_plan_one_step_dubins_car
 baseline_ros_interface: planners.ros_interface:baseline_plan_one_step_dubins_car
 discrete: False

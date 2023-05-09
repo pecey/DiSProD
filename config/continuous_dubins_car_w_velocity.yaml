@@ -4,7 +4,7 @@ max_episode_steps: 200
 n_restarts: 400
 depth: 100
 lr: 1
-reward_fn: env.reward_fns:continuous_dubins_car_w_velocity_leaky
+reward_fn: env.reward_fns:continuous_dubins_car_w_velocity
 discrete: False
 noise: False
 log_file: None
@@ -13,7 +13,6 @@ dynamic_lr: False
 debug: True
 add_obstacles: True
 obstacles_config_path: ???
-run_mode: production
 plot_imagined_trajectory: True
 env_file: env.dubins_env_properties_w_velocity:EnvironmentProperties
 vehicle_model: turtlebot ## or jackal

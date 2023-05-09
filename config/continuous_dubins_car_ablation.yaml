@@ -2,7 +2,7 @@ env_name: continuous-dubins-car-ablation-v0
 env_entry_point: env.continuous_dubins_car_ablation:ContinuousDubinsCarAblation
 max_episode_steps: 750
 depth: 100
-reward_fn: env.reward_fns:continuous_dubins_car_leaky
+reward_fn: env.reward_fns:continuous_dubins_car
 discrete: False
 render: True
 run_mode: production

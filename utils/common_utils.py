@@ -121,7 +121,6 @@ def prepare_config(env_name, mode, cfg_path=None, log_path=None):
 
     config_files = [f"{cfg_path}/{mode}/default.yaml",
                     f"{cfg_path}/{mode}/{env_name}.yaml",
-                    f"{cfg_path}/disprod_default.yaml",
                     f"{cfg_path}/default.yaml",
                     f"{cfg_path}/{env_name}.yaml"]
     config = {}
@@ -181,11 +180,8 @@ def update_config_with_args(env_cfg, args, base_path):
             
     return env_cfg
 
-def setup_output_dirs(cfg, run_name, base_path, setup_for_learning):
-    if setup_for_learning:
-        base_dir = f"{base_path}/results/{cfg['env_name']}/learning/{run_name}"
-    else:
-        base_dir = f"{base_path}/results/{cfg['env_name']}/planning/{run_name}"
+def setup_output_dirs(cfg, run_name, base_path):
+    base_dir = f"{base_path}/results/{cfg['env_name']}/planning/{run_name}"
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     cfg["results_dir"] = base_dir
 
@@ -197,12 +193,3 @@ def setup_output_dirs(cfg, run_name, base_path, setup_for_learning):
     graph_dir = f"{base_dir}/graphs"
     Path(graph_dir).mkdir(parents=True, exist_ok=True)
     cfg["graph_dir"] = graph_dir
-
-    if setup_for_learning:
-        model_dir = f"{base_dir}/model"
-        Path(model_dir).mkdir(parents=True, exist_ok=True)
-        cfg["model_dir"] = model_dir
-
-        data_dir = f"{base_dir}/data"
-        Path(data_dir).mkdir(parents=True, exist_ok=True)
-        cfg["data_dir"] = data_dir
