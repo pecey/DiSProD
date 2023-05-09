@@ -2,7 +2,7 @@ from planners.discrete_disprod import DiscreteDisprod
 # from planners.continuous_disprod import ContinuousDisprod
 from planners.continuous_disprod_hybrid import ContinuousDisprodHybrid
 from planners.c_disprod import ContinuousDisprod
-from planners.baseline import shooting_cem , shooting_cem_hybrid
+from planners.baseline import shooting_cem , shooting_cem_hybrid, cem
 import numpy as onp
 
 # def plan_one_step(agent, env, state):
@@ -12,12 +12,12 @@ import numpy as onp
 
 def setup_planner(env, env_cfg, key):
     if env_cfg["alg"] in ["cem", "mppi"]:
-        agent = shooting_cem.ShootingCEM(env, env_cfg)
+        agent = cem.ShootingCEM(env, env_cfg)
     elif env_cfg["alg"] == "disprod":
         if env_cfg["discrete"]:
             agent = DiscreteDisprod(env, env_cfg)
         else:
-            agent = ContinuousDisprod(env, env_cfg, key)
+            agent = ContinuousDisprod(env, env_cfg)
     elif env_cfg["alg"] == "hybrid_disprod":
         agent = ContinuousDisprodHybrid(env, env_cfg)
     elif env_cfg["alg"] == "hybrid_cem":

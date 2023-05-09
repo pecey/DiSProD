@@ -14,11 +14,9 @@ class Disprod:
         else:
             self.reward_fn = load_method(cfg.get('reward_fn'))
 
-        self.model = None
-
         self.nA = env.action_space.n if cfg["discrete"] else env.action_space.shape[0]
-        # +1 due to addition of noise variable as a pseduo-state variable.
         self.nS = cfg.get("nS_out", env.observation_space.shape[0])
+        
         self.max_grad_steps = cfg["disprod"]["max_grad_steps"]
 
         self.n_restarts = cfg["disprod"]["n_restarts"]

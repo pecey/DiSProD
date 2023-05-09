@@ -63,13 +63,12 @@ def run(cfg, queue, n_episodes, seeds):
         if len(frames) > 0:
             save_frames_as_gif(frames, path=f"{cfg['graph_dir']}", filename=f"seed_{seeds[idx]}.gif")
 
-        # Convert to list if reward is ndarray
-        if type(total_reward).__module__=='numpy':
+        # Convert to list if reward is ndarray. Required just for Pendulum.
+        if type(total_reward).__module__ in ['numpy', "jaxlib.xla_extension"]:
             total_reward = total_reward.tolist()
         
         # Dump scores as JSON
         scores.append({"seed": seeds[idx], "returns": total_reward, "steps": n_step})
-        print(scores)
         if "dubins" in cfg["env_name"]:
             env.save_trajectory(f"{cfg['graph_dir']}", f"{seeds[idx]}_trajectory")
     queue.put(scores)
