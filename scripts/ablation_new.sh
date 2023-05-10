@@ -32,7 +32,7 @@ do
         mkdir -p ${results_folder}
         
        
-        stdbuf -oL nohup python3 ${DISPROD_PATH}/run_gym.py --env_name ${config_name} --run_name ${dir_name}-${alpha}-${taylor_expansion_mode} --render=False --n_episodes=10 --alpha=${alpha} --taylor_expansion_mode=${taylor_expansion_mode} --alg=sogbofa --n_restarts=50 >> ${results_folder}/stdout.txt
+        stdbuf -oL nohup python3 ${DISPROD_PATH}/run_gym.py --env_name ${config_name} --run_name ${dir_name}-${alpha}-${taylor_expansion_mode} --render=False --n_episodes=10 --alpha=${alpha} --taylor_expansion_mode=${taylor_expansion_mode} --alg=disprod --n_restarts=50 >> ${results_folder}/stdout.txt
 
         #python3 ${DISPROD_PATH}/scripts/summarize.py --path=${results_folder}
     done
