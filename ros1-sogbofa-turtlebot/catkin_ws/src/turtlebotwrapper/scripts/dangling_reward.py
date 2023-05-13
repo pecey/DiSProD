@@ -5,10 +5,8 @@ import tf
 import rospy
 import numpy as np
 import sys
-import torch as T
 from omegaconf import OmegaConf
 import os
-import xml.etree.ElementTree as ET
 import json
 
 DISPROD_PATH = os.getenv("DISPROD_PATH")

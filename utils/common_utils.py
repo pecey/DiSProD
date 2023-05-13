@@ -1,6 +1,5 @@
 import gym
 import numpy as onp
-import torch as T
 from matplotlib import pyplot as plt
 from matplotlib import animation
 import importlib
@@ -14,17 +13,17 @@ import time
 from pathlib import Path
 
 
-# Argmax with random tie-breaks
-# The 0th-restart is always set to the previous solution
-def random_argmax(key, x, pref_idx=0):
-    try:
-        options = jnp.where(x == jnp.nanmax(x))[0]
-        val = 0 if 0 in options else jax_random.choice(key, options)
-    except:
-        val = jax_random.choice(key, jnp.arange(len(x)))
-        print(f"All restarts where NaNs. Randomly choosing {val}.")
-    finally:
-        return val
+# # Argmax with random tie-breaks
+# # The 0th-restart is always set to the previous solution
+# def random_argmax(key, x, pref_idx=0):
+#     try:
+#         options = jnp.where(x == jnp.nanmax(x))[0]
+#         val = 0 if 0 in options else jax_random.choice(key, options)
+#     except:
+#         val = jax_random.choice(key, jnp.arange(len(x)))
+#         print(f"All restarts where NaNs. Randomly choosing {val}.")
+#     finally:
+#         return val
 
 
 # Miscellaneous functions
@@ -60,19 +59,12 @@ def save_frames_as_gif(frames, path='./', filename='gym_animation.gif', save_as_
         anim.save(f"{path}/{video_filename}", extra_args=['-vcodec', 'libx264'])
     plt.close()
     print(f"Saving GIF in {path}/{filename}, frames : {len(frames)}")
-    # plt.savefig(f"{path}{filename}_{idx}.png")
 
 
 # Seed the libraries
 def set_global_seeds(seed, env=None):
     onp.random.seed(seed)
     random.seed(seed)
-
-    T.manual_seed(seed)
-    if T.cuda.is_available():
-        T.cuda.manual_seed_all(seed)
-        T.backends.cudnn.deterministic = True
-        T.backends.cudnn.benchmark = False
 
     if env:
         env.seed(seed)

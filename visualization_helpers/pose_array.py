@@ -12,9 +12,6 @@ class PoseArrayViz(abc.ABC):
         self.env = env
 
     def _intialize_array(self):
-        # self.all_restart_depth = {'x':torch.zeros(self.depth, self.restart).double() , 'y' : torch.zeros(self.depth, self.restart).double() \
-        #     , 'theta':torch.zeros(self.depth, self.restart).double()}
-        
         self.msg = self.get_array()
         self.msg_list = []
 

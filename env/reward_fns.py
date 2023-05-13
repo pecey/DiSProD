@@ -1,5 +1,3 @@
-import torch as T
-import torch.nn.functional as F
 import math
 import jax
 import jax.numpy as jnp

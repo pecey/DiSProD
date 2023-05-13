@@ -5,7 +5,6 @@ import rospy
 import numpy as np
 import sys
 import os
-import torch as T
 from omegaconf import OmegaConf
 import argparse
 import json
@@ -171,11 +170,9 @@ def prepare_config(planner, cfg_path=None):
 
 
 def main(args):
-    device = "cuda" if T.cuda.is_available() else "cpu"
     env_cfg = prepare_config(args.planner, DISPROD_CONF_PATH)
     env_cfg = update_with_args(env_cfg, args)
     env_cfg = update_with_goal_and_obstacle_config(env_cfg, args)
-    env_cfg["device"] = device
     env_cfg["naive"] = True if args.planner.lower() == "naive" else False
     env_cfg["map_name"] = args.map_name
 

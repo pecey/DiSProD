@@ -12,8 +12,8 @@ pyvirtualdisplay==3.0
 setuptools==45.2.0
 sympy==1.7.1
 tf==1.13.2
-torch==1.10.2
 numpy==1.22.2
 mujoco-py<2.2,>=2.1
 scipy==1.8.0
 tensorflow_probability==0.16.0
+scienceplots
