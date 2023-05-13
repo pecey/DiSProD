@@ -1,6 +1,6 @@
 import numpy as np
 from planners.discrete_disprod import DiscreteDisprod
-from planners.c_disprod import ContinuousDisprod
+from planners.continuous_disprod import ContinuousDisprod
 
 from planners.baseline import cem
 DEGREE_TO_RADIAN_MULTIPLIER = np.pi/180

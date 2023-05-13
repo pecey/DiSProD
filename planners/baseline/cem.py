@@ -49,12 +49,17 @@ class ShootingCEM():
         self.ac_lb = env.action_space.low
         self.ac_ub = env.action_space.high
 
-    
-        self.n_noise_var = 1
+
+        self.n_bin_var = cfg.get("n_bin_var", 0)
+
+        if self.n_bin_var == 0:
+            noise_gen_fn = gen_norm_noise(self.plan_horizon, self.pop_size)
+        else:
+            noise_gen_fn = gen_norm_uni_noise(self.plan_horizon, self.pop_size)    
 
         a_dist_fn = a_dist(self.ac_lb, self.ac_ub, self.pop_size)
         eval_fitness_step_fn = eval_fitness_step(self.batch_dynamics, self.batch_rewards, env)
-        eval_fitness_fn = eval_fitness(eval_fitness_step_fn, self.pop_size, self.plan_horizon)
+        eval_fitness_fn = eval_fitness(eval_fitness_step_fn, noise_gen_fn, self.pop_size, self.plan_horizon)
 
         if self.alg == "cem":
             self.plan_fn = evaluate_cem(a_dist_fn, eval_fitness_fn, self.elite_size, self.opt_steps)
@@ -93,6 +98,19 @@ def a_dist(ac_lb, ac_ub, pop_size):
         return a_mean, a_std, noise
     return _a_dist
 
+def gen_norm_noise(plan_horizon, pop_size):
+    def _gen_norm_noise(key):
+        return jax.random.normal(key, [plan_horizon, pop_size, 1])
+    return _gen_norm_noise
+
+def gen_norm_uni_noise(plan_horizon, pop_size):
+    def _gen_norm_uni_noise(key):
+        key1, key2 = jax.random.split(key)
+        noise_norm = jax.random.normal(key1, [plan_horizon, pop_size, 1])
+        noise_uni = jax.random.uniform(key2, [plan_horizon, pop_size, 1])
+        return jnp.concatenate([noise_norm, noise_uni], axis = 2)
+    return _gen_norm_uni_noise
+        
 
 # Function to evaluate next state and reward for a batch of actions.
 def eval_fitness_step(batch_dynamics_fn, batch_rewards_fn, env):
@@ -108,7 +126,7 @@ def eval_fitness_step(batch_dynamics_fn, batch_rewards_fn, env):
     return _eval_fitness_step
 
 # Function to evaluate the fitness of a batch of actions.
-def eval_fitness(eval_fitness_step_fn, pop_size, plan_horizon):    
+def eval_fitness(eval_fitness_step_fn, noise_gen_fn, pop_size, plan_horizon):    
     def _eval_fitness(obs, actions, key):
         """
         obs: Vector of observed state variables
@@ -117,10 +135,10 @@ def eval_fitness(eval_fitness_step_fn, pop_size, plan_horizon):
         """
         feats = jnp.tile(obs, [pop_size, 1])
         agg_rewards = jnp.zeros([pop_size], dtype=jnp.float32)
-        noise_norm = jax.random.normal(key, [plan_horizon, pop_size, 1])
-        # noise_uni = jax.random.uniform(key, [plan_horizon, pop_size, 1])
-        noise = jnp.concatenate([noise_norm], axis = 2)
 
+        # Generate noise variables for the "sampling" from the transition fn
+        noise = noise_gen_fn(key)
+        
         # From (pop_size, plan_horizon, nA) to (plan_horizon, pop_size, nA)
         actions = actions.transpose(1, 0, 2)
         init_val = (feats, actions, noise, agg_rewards)

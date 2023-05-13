@@ -1,16 +1,11 @@
 env_name: continuous-cartpole-hybrid-v1
 env_entry_point: env.continuous_cartpole_hybrid:CartPoleEnv
 max_episode_steps: 200
-depth: 25
+depth: 100
 reward_fn: env.reward_fns:cartpole_hybrid
 discrete: False
 render: True
-
-plot_imagined_trajectory: True
-
-
 n_bin_var: 1
-
 
 cem:
   n_samples: 200

@@ -1,416 +1,332 @@
 import jax
 import jax.numpy as jnp
-import time
 
-from planners.disprod import Disprod
 from functools import partial
-from utils.common_utils import print_, random_argmax
 from planners.utils import adam_with_projection
-import numpy as np
+from planners.disprod import Disprod
 
 class ContinuousDisprod(Disprod):
-    def __init__(self, env, cfg, key):
-        super(ContinuousDisprod, self).__init__(env, cfg, key)
-        self.low_action = self.env.action_space.low
-        self.high_action = self.env.action_space.high
+    def __init__(self, env, cfg):
 
-        self.key = key
+        super(ContinuousDisprod, self).__init__(env, cfg)
+        self.ac_lb = env.action_space.low
+        self.ac_ub = env.action_space.high
         
+        # self.nA = cfg["nA"]
+        # self.nS = cfg["nS"]
+        self.depth = cfg.get("depth")
+
+        self.n_res = cfg["disprod"]["n_restarts"]
+        self.max_grad_steps = cfg["disprod"]["max_grad_steps"]
+        self.step_size = cfg["disprod"]["step_size"]
+        self.step_size_var = cfg["disprod"]["step_size_var"]
+        self.conv_thresh = cfg["disprod"]["convergance_threshold"]        
+            
+        self.log_file = cfg["log_file"]
+
         # Multiplicative factor used to transform free_action variables to the legal range.
-        self.multiplicative_factor = self.high_action - self.low_action
-
-       
-        self.first_partials_fn = jax.jacfwd(self.ns_fn, argnums=(0, 1))
-
-        self.next_state_fn = self.next_state_for_exact_fn
-        self.partials_fn = self.partials_for_exact_fn
-            
-        if cfg['disprod']['reward_fn_using_taylor']:
-            self.reward_dist_fn = self.reward_fn_taylor
-        else:
-            self.reward_dist_fn = self.reward_fn_non_taylor
-            
-        self.converged_jit = jax.jit(lambda x , thresh : jnp.max(jnp.abs(x)) < thresh)
-
-        self.choose_action_mean = cfg["disprod"]["choose_action_mean"]
-
+        self.scale_fac = self.ac_ub - self.ac_lb
+        self.converged_jit = jax.jit(lambda x, thresh: jnp.max(jnp.abs(x)) < thresh)
+        
+        self.n_bin_var = cfg.get("n_bin_var", 0)
+        self.n_real_var = self.nS - self.n_bin_var
+        
+        # Partial function to initialize action distribution
+        self.ac_dist_init_fn = init_ac_dist(self.n_res, self.depth, self.nA, low_ac=0, high_ac=1)
+        
+        # Partial function to scale action distribution
+        self.ac_dist_trans_fn = trans_ac_dist(self.ac_lb, self.scale_fac)
+        
+        norm_mu, norm_var = 0, 1
+        uni_mu, uni_var = 0, 1/12
+        
+        if self.n_bin_var == 0:
+            noise_dist = (jnp.array([norm_mu]), jnp.array([norm_var]))
+        else:  
+            noise_dist = (jnp.array([norm_mu, uni_mu]), jnp.array([norm_var, uni_var]))
+        
+        # Dynamics distribution function
         if cfg["disprod"]["taylor_expansion_mode"] == "complete":
-            self.next_state_expectation_and_variance = self.next_state_expectation_and_variance_complete
-        elif cfg["disprod"]["taylor_expansion_mode"] == "state_var_only":
-            self.next_state_expectation_and_variance = self.next_state_state_var_only
-        elif cfg["disprod"]["taylor_expansion_mode"] == "action_var_only":
-            self.next_state_expectation_and_variance = self.next_state_action_var_only
+            fop_fn = fop_analytic(self.ns_fn, env)
+            sop_fn = sop_analytic(self.ns_fn, env)
+            self.dynamics_dist_fn = dynamics_comp(self.ns_fn, env, fop_fn, sop_fn, noise_dist, self.n_real_var, self.n_bin_var)
         elif cfg["disprod"]["taylor_expansion_mode"] == "no_var":
-            self.next_state_expectation_and_variance = self.next_state_no_var
+            self.dynamics_dist_fn = dynamics_nv(self.ns_fn, env, noise_dist, self.n_real_var, self.n_bin_var)
         else:
-            raise Exception(f"Unknown value for config taylor_expansion_mode. Got {cfg['taylor_expansion_mode']}")
+            raise Exception(
+                f"Unknown value for config taylor_expansion_mode. Got {cfg['taylor_expansion_mode']}")
         
-        self.reset()
-        self.run_mode="production"
+        # Reward distribution function
+        if cfg['disprod']['reward_fn_using_taylor']:
+            self.reward_dist_fn = reward_comp(self.reward_fn, self.env)
+        else:
+            self.reward_dist_fn = reward_mean(self.reward_fn, self.env)
+
+        # Action selector
+        if cfg["disprod"]["choose_action_mean"]:
+            self.ac_selector = lambda m,v,key: m
+        else:
+            self.ac_selector = lambda m,v,key: m + jnp.sqrt(v) * jax.random.normal(key, shape=(self.nA,)) 
             
-    # Computes the second order derivatives of a vector
-    def hessian(self, fn, wrt):
-        return jax.jacfwd(jax.jacrev(fn, argnums=wrt), argnums=wrt)
+        self.rollout_fn = rollout_graph(self.dynamics_dist_fn, self.reward_dist_fn)
+        self.q_fn = q(noise_dist, self.depth, self.rollout_fn)
+        self.batch_q_fn = jax.vmap(self.q_fn, in_axes=(0, 0, 0), out_axes=(0))
         
-    # Computes the diagonal of hessian.
-    def diag_hessian_of_transition(self, s, a, wrt):
-        stacked_hessian = self.hessian(self.ns_fn, wrt)(s, a, self.env, self.alpha)
-        return jax.numpy.diagonal(stacked_hessian, axis1=1, axis2=2)
+        self.batch_grad_q_fn = jax.vmap(grad_q(self.q_fn), in_axes=(0, 0, 0), out_axes=(0, 0))
 
-    # TODO : Should be ideally part of env
-    def set_goal(self, goal_position):
-        self.env.goal_x, self.env.goal_y = goal_position
-
-    def update_model(self, model):
-        self.model = model
 
     def reset(self, key):
-        self.key, subkey = jax.random.split(self.key)
-        self.saved_restart = jax.random.uniform(subkey, shape=(self.depth, self.nA))
+        key_1, key_2 = jax.random.split(key)
+        ac_seq = jax.random.uniform(key_1, shape=(self.depth, self.nA))
+        return ac_seq, key_2
 
-    # state: (nS - 1,)
-    def choose_action(self, state):
-        self.nS = state.shape[0] + 1
+    @partial(jax.jit, static_argnums=(0,))
+    def choose_action(self, obs, prev_ac_seq, key):
+        ac_seq = prev_ac_seq
 
-        # Create a vector of states corresponding to n_restarts
-        stacked_state = jnp.tile(state, (self.n_restarts, 1)).astype('float32')
+        # Create a vector of obs corresponding to n_restarts
+        state = jnp.tile(obs, (self.n_res, 1)).astype('float32')
 
-        # Initialize free_action_mean to [0,1) range and free_action_variance using a uniform distribution
-        self.key, subkey1, subkey2, subkey3 = jax.random.split(self.key, 4)
-        free_action_mean = self.initialize_action_means(subkey1)
-        free_action_variance = self.initialize_action_variance(free_action_mean)
+        # key: returned
+        # subkey1: for action distribution initialization
+        # subkey2: for random argmax
+        # subkey3: for sampling action from action distribution
+        key, subkey1, subkey2, subkey3 = jax.random.split(key, 4)
 
-        # Check for expected shapes
-        assert(stacked_state.shape == (self.n_restarts, self.nS - 1))
-        assert(free_action_mean.shape == free_action_variance.shape == (self.n_restarts, self.depth, self.nA))
+        # Initialize the action distribution
+        ac_mean, ac_var = self.ac_dist_init_fn(subkey1, ac_seq)
 
-        opt_init_mean, self.opt_update_mean, self.get_params_mean = adam_with_projection(self.step_size)
-        opt_state_mean = opt_init_mean(free_action_mean)
+        opt_init_mean, opt_update_mean, get_params_mean = adam_with_projection(self.step_size)
+        opt_state_mean = opt_init_mean(ac_mean)
 
-        opt_init_var, self.opt_update_var, self.get_params_var = adam_with_projection(self.step_size_var)
-        opt_state_var = opt_init_var(free_action_variance)
+        opt_init_var, opt_update_var, get_params_var = adam_with_projection(self.step_size_var)
+        opt_state_var = opt_init_var(ac_var)
 
         n_grad_steps = 0
         has_converged = False
 
-        init_val = (free_action_mean, free_action_variance, n_grad_steps, has_converged, stacked_state , opt_state_mean, opt_state_var, jnp.zeros((self.max_grad_steps,)))
-        # Iterate until max_grad_steps reached or both means and variance has not converged
-        if self.run_mode != "production":
-            free_action_mean, free_action_variance, n_grad_steps, _, _, _, _, tmp = self.update_actions(init_val)
-        else:
-            free_action_mean, free_action_variance, n_grad_steps , _, _, _,_, tmp  = jax.lax.while_loop(self.have_actions_converged , self.update_actions_optimised , init_val)
+        def _update_ac(val):
+            """
+            Update loop for all the restarts.
+            """
+            ac_mu_init, ac_var_init, n_grad_steps, has_converged, state, opt_state_mean, opt_state_var, tmp = val
 
-        assert (jnp.sum(jnp.where(free_action_variance > 1/12, jnp.ones_like(free_action_variance), jnp.zeros_like(free_action_variance))) == 0.0)
+            # Scale action means and variance from (0,1) to permissible action ranges
+            scaled_ac_mu, scaled_ac_var = self.ac_dist_trans_fn(ac_mu_init, ac_var_init)
 
-        action_means = self.transform_action_means(free_action_mean).block_until_ready()
-        action_variance = self.transform_action_variance(free_action_variance).block_until_ready()
+            # Compute Q-value function for all restarts
+            reward = self.batch_q_fn(state, scaled_ac_mu, scaled_ac_var)
 
-        if self.debug:
-            print(f"Gradients steps taken: {n_grad_steps}. Resets per step: {tmp}")
+            # Compute gradients with respect to action means and action variance.
+            grad_mean, grad_var = self.batch_grad_q_fn(state, scaled_ac_mu, scaled_ac_var)
 
-        # Compute updated Q-value.
-        q_value, trajectory = jax.vmap(self.q_optimised, in_axes=(0, 0, 0), out_axes=0)(stacked_state, action_means, action_variance)
-        
-        # TODO: If multiple restarts have the same q-value, should we choose the action with lowest variance?
-        best_restart = random_argmax(subkey2, q_value)
-        self.saved_restart = free_action_mean[best_restart]
-        
-        print(f"Action chosen: {action_means[best_restart][0]}, variance: {action_variance[best_restart][0]}")
+            # Update action distribution based on gradients
+            opt_state_mean = opt_update_mean(n_grad_steps, -grad_mean, opt_state_mean, 0, 1)
+            ac_mu_upd = get_params_mean(opt_state_mean)
 
-        best_trajectory = trajectory[best_restart]
+            wiggle_room = jnp.minimum(ac_mu_upd - 0, 1 - ac_mu_upd)
+            opt_state_var = opt_update_var(n_grad_steps, -grad_var, opt_state_var, 0, jnp.minimum(1/12, jnp.square(wiggle_room)/12))
+            ac_var_upd = get_params_var(opt_state_var)
 
-        if self.choose_action_mean:
-            selected_action = action_means[best_restart][0]
-        else:
-            selected_action = action_means[best_restart][0] + jax.random.normal(subkey3, shape=(self.nA,)) * action_variance[best_restart][0]
-        return jnp.clip(selected_action, self.low_action, self.high_action), best_trajectory
+            # Scale updated action means and variance from (0,1) to permissible action ranges
+            scaled_ac_mu_upd, scaled_ac_var_upd = self.ac_dist_trans_fn(ac_mu_upd, ac_var_upd)
 
-    def update_actions(self, val):
-        free_action_mean , free_action_variance, n_grad_steps , has_converged , stacked_state , opt_state_mean, opt_state_var, tmp = val
-        while n_grad_steps < self.max_grad_steps and not has_converged:
-            # free_action_mean_old = free_action_mean.copy()
-            # free_action_variance_old = free_action_variance.copy()
+            # Compute updated reward
+            updated_reward = self.batch_q_fn(state, scaled_ac_mu_upd, scaled_ac_var_upd)
 
-            # Transform action means and variance from (0,1) to permissible action ranges
-            action_means = self.transform_action_means(free_action_mean)
-            action_variance = self.transform_action_variance(free_action_variance)
-
-            (reward , _), (grad_mean, grad_var) = jax.vmap(jax.value_and_grad(self.q, argnums=(1,2), has_aux = True), in_axes=(0, 0, 0), out_axes=0)(stacked_state, action_means, action_variance)
-            
-            # Loss is negative of Q-value.
-            opt_state_mean = self.opt_update_mean(n_grad_steps, -grad_mean, opt_state_mean, 0, 1)
-            free_action_mean_  = self.get_params_mean(opt_state_mean)
-        
-            wiggle_room = jnp.minimum(free_action_mean_ - 0, 1 - free_action_mean_)
-            opt_state_var = self.opt_update_var(n_grad_steps, -grad_var, opt_state_var, 0, jnp.minimum(1/12, jnp.square(wiggle_room)/12))
-            free_action_variance_ = self.get_params_var(opt_state_var)
-
-            updated_action_means = self.transform_action_means(free_action_mean_)
-            updated_action_variance = self.transform_action_variance(free_action_variance_)
-            
-            updated_reward , _ = jax.vmap(self.q, in_axes=(0, 0, 0), out_axes=0)(stacked_state, updated_action_means, updated_action_variance)
-
-            restarts_to_reset = jnp.where(updated_reward < reward, jnp.ones(self.n_restarts, dtype=jnp.int32), jnp.zeros(self.n_restarts, dtype=jnp.int32))
+            # Reset the restarts in which updates led to a poor reward
+            restarts_to_reset = jnp.where(updated_reward < reward, jnp.ones(self.n_res, dtype=jnp.int32), jnp.zeros(self.n_res, dtype=jnp.int32))
             mask = jnp.tile(restarts_to_reset, (self.depth, self.nA, 1)).transpose(2, 0, 1)
-            free_action_mean_final = free_action_mean * mask + free_action_mean_ * (1-mask)
-            free_action_variance_final = free_action_variance * mask + free_action_variance_ * (1-mask)
+            ac_mu = ac_mu_init * mask + ac_mu_upd * (1-mask)
+            ac_var = ac_var_init * mask + ac_var_upd * (1-mask)
 
-            tmp.at[n_grad_steps].set(jnp.sum(restarts_to_reset))
+            # Compute action mean and variance epsilon
+            ac_mu_eps = ac_mu - ac_mu_init
+            ac_var_eps = ac_var - ac_var_init
 
-            mean_epsilon = free_action_mean_final - free_action_mean
-            variance_epsilon = free_action_variance_final - free_action_variance
+            # Check for convergence
+            has_converged = jnp.logical_and(jnp.max(jnp.abs(ac_mu_eps)) < self.conv_thresh, jnp.max(jnp.abs(ac_var_eps)) < self.conv_thresh/10)
 
-            free_action_mean = free_action_mean_final
-            free_action_variance = free_action_variance_final
-            
-            has_converged = jnp.max(jnp.abs(mean_epsilon)) < self.convergance_threshold and jnp.max(jnp.abs(variance_epsilon)) < self.convergance_threshold
-            n_grad_steps += 1
-        return free_action_mean_final, free_action_variance_final, n_grad_steps, None, None, None, tmp
+            return ac_mu, ac_var, n_grad_steps + 1, has_converged, state, opt_state_mean, opt_state_var, tmp.at[n_grad_steps].set(jnp.sum(restarts_to_reset))
 
-    def have_actions_converged(self , val):
-        _ , _ , n_grad_steps , has_converged , _ , _, _, _= val
-        return jnp.logical_and(n_grad_steps < self.max_grad_steps, jnp.logical_not(has_converged))
+        def _check_conv(val):
+            _, _, n_grad_steps, has_converged, _, _, _, _ = val
+            return jnp.logical_and(n_grad_steps < self.max_grad_steps, jnp.logical_not(has_converged))
 
-    def update_actions_optimised(self, val):
-        free_action_mean, free_action_variance, n_grad_steps, has_converged, stacked_state, opt_state_mean, opt_state_var, tmp = val
+        # Iterate until max_grad_steps reached or both means and variance has not converged
 
-        # # Transform action means and variance from (0,1) to permissible action ranges
-        action_means = self.transform_action_means(free_action_mean)
-        action_variance = self.transform_action_variance(free_action_variance)
+        init_val = (ac_mean, ac_var, n_grad_steps, has_converged, state, opt_state_mean, opt_state_var, jnp.zeros((self.max_grad_steps,)))        
+        ac_mean, ac_var, n_grad_steps, _, _, _, _, tmp = jax.lax.while_loop(_check_conv, _update_ac, init_val)
 
-        (reward , _), (grad_mean, grad_var) = jax.vmap(jax.value_and_grad(self.q_optimised, argnums=(1,2), has_aux = True), in_axes=(0, 0, 0), out_axes=0)(stacked_state, action_means, action_variance)
+        scaled_ac_mean, scaled_ac_var = self.ac_dist_trans_fn(ac_mean, ac_var)
 
-        # Loss is negative of Q-value.
-        opt_state_mean = self.opt_update_mean(n_grad_steps, -grad_mean, opt_state_mean, 0, 1)
-        free_action_mean_  = self.get_params_mean(opt_state_mean)
+        # if self.debug:
+        #       print(f"Gradients steps taken: {n_grad_steps}. Resets per step: {tmp}")
+
+        q_value = self.batch_q_fn(state, scaled_ac_mean, scaled_ac_var)
+
+        # TODO: Figure out a JAX version of random_argmax
+        # best_restart = random_argmax(subkey2, q_value)
+        best_restart = jnp.nanargmax(q_value)
+        ac_seq = ac_mean[best_restart]
+
+        ac = self.ac_selector(scaled_ac_mean[best_restart][0], scaled_ac_var[best_restart][0], subkey3)
         
-        wiggle_room = jnp.minimum(free_action_mean_ - 0, 1 - free_action_mean_)
-        opt_state_var = self.opt_update_var(n_grad_steps, -grad_var, opt_state_var, 0, jnp.minimum(1/12, jnp.square(wiggle_room)/12))
-        free_action_variance_ = self.get_params_var(opt_state_var)
-
-        updated_action_means = self.transform_action_means(free_action_mean_)
-        updated_action_variance = self.transform_action_variance(free_action_variance_)
-        updated_reward , _ = jax.vmap(self.q_optimised, in_axes=(0, 0, 0), out_axes=0)(stacked_state, updated_action_means, updated_action_variance)
-
-        restarts_to_reset = jnp.where(updated_reward < reward, jnp.ones(self.n_restarts, dtype=jnp.int32), jnp.zeros(self.n_restarts, dtype=jnp.int32))
-        mask = jnp.tile(restarts_to_reset, (self.depth, self.nA, 1)).transpose(2, 0, 1)
-        free_action_mean_final = free_action_mean * mask + free_action_mean_ * (1-mask)
-        free_action_variance_final = free_action_variance * mask + free_action_variance_ * (1-mask)
-
-        # Check for convergence of action means and variance. Changed from OR to AND
-        mean_epsilon = free_action_mean_final - free_action_mean
-        variance_epsilon = free_action_variance_final - free_action_variance
-
-        has_converged = jnp.logical_and(self.converged_jit(mean_epsilon, self.convergance_threshold), self.converged_jit(variance_epsilon, self.convergance_threshold/10))
-        return free_action_mean_final, free_action_variance_final, n_grad_steps + 1, has_converged, stacked_state , opt_state_mean, opt_state_var, tmp.at[n_grad_steps].set(jnp.sum(restarts_to_reset))
-
-    def q_optimised(self, state, action_means, action_variance):
-        # augment state by adding variable for noise
-        state_expectation = jnp.concatenate((state, jnp.array([self.noise_mean])), 0)
-        # state_variance = jnp.concatenate((jnp.zeros_like(state), jnp.array([1])), 0)
-        # Workaround to make state_variance batched
-        state_variance = jnp.concatenate((state * 0, jnp.array([self.noise_var])), 0)
-
-        init_reward = jnp.array(0.0)
-        assert(state_expectation.shape == state_variance.shape == (self.nS, ))
-        trajectory_placeholder = jnp.zeros((2, self.depth , self.nS))
-        init_params = (init_reward, state_expectation, state_variance, action_means, action_variance, trajectory_placeholder)
-        aggregate_reward, _, _, _, _ ,  trajectory= jax.lax.fori_loop(0, self.depth, self.rollout_graph, init_params)
-        return aggregate_reward.sum() , trajectory
-
-    @partial(jax.jit, static_argnums=(0, ))
-    def rollout_graph(self, d, params):
-        agg_reward, state_expectation, state_variance, action_means, action_variance, trajectory = params
-        
-        # Compute immediate reward
-        reward = self.reward_dist_fn(state_expectation, state_variance, action_means[d, :], action_variance[d, :], self.env)
-        
-        # Compute next state expectation
-        state_expectation, state_variance = self.next_state_expectation_and_variance(
-                state_expectation, state_variance,
-                action_means[d, :], action_variance[d, :])
-        
-        # Update trajectory placeholder
-        trajectory = trajectory.at[0, d].set(state_expectation) 
-        trajectory = trajectory.at[1, d].set(state_variance)
-        
-        return agg_reward+reward, state_expectation, state_variance, action_means, action_variance, trajectory
-
-    def q(self, state, action_means, action_variance):
-         # augment state by adding variable for noise
-        state_expectation = jnp.concatenate((state, jnp.array([0])), 0)
-        # state_variance = jnp.concatenate((jnp.zeros_like(state), jnp.array([1])), 0)
-        # Workaround to make state_variance batched
-        state_variance = jnp.concatenate((state * 0, jnp.array([1])), 0)
-        aggregate_reward = jnp.array(0.0)
-        trajectory = jnp.zeros((2, self.depth , self.nS))
-        for d in range(self.depth):
-            reward = self.reward_fn(state_expectation, state_variance, action_means[d, :], action_variance[d, :], self.env)
-            aggregate_reward += reward
-            state_expectation, state_variance = jax.jit(self.next_state_expectation_and_variance)(
-                state_expectation, state_variance,
-                action_means[d, :], action_variance[d, :])
-             
-            # Update trajectory
-            trajectory = trajectory.at[0, d].set(state_expectation) 
-            trajectory = trajectory.at[1, d].set(state_variance)
-        return aggregate_reward.sum() , trajectory
-
-    # Clamp each action between 0 and 1.
-    @partial(jax.jit, static_argnums=(0,))
-    def project_mean(self, free_action_mean):
-        return jnp.clip(free_action_mean, 0, 1)
-
-    # Prevent variance from becoming negative
-    @partial(jax.jit, static_argnums=(0,))
-    def project_variance(self, free_action_variance):
-        return jnp.clip(free_action_variance, 0, 1/12)
-
-    # Shape of FOP and SOP: (nS-1, nA), (nS-1, nS)
-    @partial(jax.jit, static_argnums=(0,))
-    def next_state_expectation_and_variance_complete(self, state_means, state_variance, actions_means, action_variance):
-        operands = state_means, actions_means
-        next_state = self.next_state_fn(operands)
-    
-        (fop_wrt_state, fop_wrt_action), (sop_wrt_state, sop_wrt_action) = self.partials_fn(operands)
-
-        # Taylor's expansion
-        next_state_expectation = next_state + 0.5*(jnp.multiply(sop_wrt_action, action_variance).sum(axis = 1) + jnp.multiply(sop_wrt_state, state_variance).sum(axis=1))
-        next_state_variance = jnp.multiply(jnp.square(fop_wrt_action), action_variance).sum(axis = 1) + jnp.multiply(jnp.square(fop_wrt_state), state_variance).sum(axis = 1)
-        
-        next_state_expectation = jnp.concatenate([next_state_expectation, jnp.array([self.noise_mean])], axis=0)
-        next_state_variance = jnp.concatenate([next_state_variance, jnp.array([self.noise_var])], axis=0)
-        
-        return next_state_expectation, next_state_variance
-
-    # Ignore the variance terms
-    @partial(jax.jit, static_argnums=(0,))
-    def next_state_no_var(self, state_means, state_variance, actions_means, action_variance):
-        operands = state_means, actions_means
-        next_state = self.next_state_fn(operands)
-
-        next_state_expectation = next_state 
-        next_state_variance = jnp.zeros((self.nS-1, ))
-        
-        next_state_expectation = jnp.concatenate([next_state_expectation, jnp.array([self.noise_mean])], axis=0)
-        next_state_variance = jnp.concatenate([next_state_variance, jnp.array([self.noise_var])], axis=0)
-        
-        return next_state_expectation, next_state_variance
-
-    # Use only state variance
-    @partial(jax.jit, static_argnums=(0,))
-    def next_state_state_var_only(self, state_means, state_variance, actions_means, action_variance):
-        operands = state_means, actions_means
-        next_state = self.next_state_fn(operands)
-
-        (fop_wrt_state, _), (sop_wrt_state, _) = self.partials_fn(operands)
-
-        next_state_expectation = next_state + 0.5*(jnp.multiply(sop_wrt_state, state_variance).sum(axis=1))
-        next_state_variance =  jnp.multiply(jnp.square(fop_wrt_state), state_variance).sum(axis = 1)
-        
-        next_state_expectation = jnp.concatenate([next_state_expectation, jnp.array([self.noise_mean])], axis=0)
-        next_state_variance = jnp.concatenate([next_state_variance, jnp.array([self.noise_var])], axis=0)
-        
-        return next_state_expectation, next_state_variance
-    
-    # Use only action variance
-    @partial(jax.jit, static_argnums=(0,))
-    def next_state_action_var_only(self, state_means, state_variance, actions_means, action_variance):
-        operands = state_means, actions_means
-        next_state = self.next_state_fn(operands)
-
-        (_, fop_wrt_action), (_, sop_wrt_action) = self.partials_fn(operands)
-
-        next_state_expectation = next_state + 0.5*(jnp.multiply(sop_wrt_action, action_variance).sum(axis=1))
-        next_state_variance =  jnp.multiply(jnp.square(fop_wrt_action), action_variance).sum(axis = 1)
-        
-        next_state_expectation = jnp.concatenate([next_state_expectation, jnp.array([self.noise_mean])], axis=0)
-        next_state_variance = jnp.concatenate([next_state_variance, jnp.array([self.noise_var])], axis=0)
-        
-        return next_state_expectation, next_state_variance
+        return jnp.clip(ac, self.ac_lb, self.ac_ub), ac_seq, key
 
 
-    # Functions for getting next state
-    @partial(jax.jit, static_argnums=(0,))
-    def next_state_for_nn(self, operands):
-        state, actions = operands
-        final_actions = self.postprocessing_fn(self.env, state, actions)
-        return self.model.next_state(state, final_actions)
-
-    @partial(jax.jit, static_argnums=(0,))
-    def next_state_for_exact_fn(self, operands):
-        state, actions = operands
-        return self.ns_fn(state, actions, self.env, self.alpha)
-
-    
-    # Functions for computing partials
-    @partial(jax.jit, static_argnums=(0,))
-    def partials_for_nn(self, operands):
-        state, actions = operands
-        return self.model.get_partials(state, actions)
-
-    @partial(jax.jit, static_argnums=(0,))
-    def partials_for_exact_fn(self, operands):
-        fop_wrt_state, fop_wrt_action = self.first_order_partials_for_exact_fn(operands)
-        sop_wrt_state, sop_wrt_action = self.second_order_partials_for_exact_fn(operands)
-        return (fop_wrt_state, fop_wrt_action), (sop_wrt_state, sop_wrt_action)
-    
-    def first_order_partials_for_exact_fn(self, operands):
-        state_means, action_means = operands
-        return self.first_partials_fn(state_means, action_means, self.env, self.alpha)
+# def random_argmax(key, x, pref_idx=0):
+#     options = jnp.where(x == jnp.nanmax(x))[0]
+#     val = 0 if 0 in options else jax_random.choice(key, options)
+#     return val
 
 
-    def second_order_partials_for_exact_fn(self, operands):
-        state_means, action_means = operands
-        sop_wrt_state  = self.diag_hessian_of_transition(state_means, action_means, 0) 
-        sop_wrt_action = self.diag_hessian_of_transition(state_means, action_means, 1)
-        return sop_wrt_state, sop_wrt_action 
+#########
+# Action Distribution initialization and transformation
+#########
 
-    # actions ~ Uniform(0,1).
-    # If saved, then replace the corresponding action in the sample
-    # This has not been JIT intentionally
-    def initialize_action_means(self, key):
-        actions = jax.random.uniform(key, shape=(self.n_restarts, self.depth, self.nA))
-        actions = actions.at[0, : self.depth-1,:].set(self.saved_restart[1:, :])
-        return actions
+# actions ~ Uniform(0,1).
+def init_ac_dist(n_res, depth, nA, low_ac, high_ac):
+    def _init_ac_dist(key, ac_seq):
+        ac_mean = jax.random.uniform(key, shape=(n_res, depth, nA))
+        ac_mean = ac_mean.at[0, : depth -1, :].set(ac_seq[1:, :])
 
-    # Uniform distribution variance : (1/12)(b-a)^2
-    @partial(jax.jit, static_argnums=(0,))
-    def initialize_action_variance(self, action_means, low_action=0, high_action=1):
-        lower_limit = jnp.abs(action_means - low_action)
-        higher_limit = jnp.abs(action_means - high_action)
+        lower_limit = jnp.abs(ac_mean - low_ac)
+        higher_limit = jnp.abs(ac_mean - high_ac)
         closer_limit = jnp.minimum(lower_limit, higher_limit)
-        variance = jnp.square(2 * closer_limit) / 12
-        return variance
+        ac_var = jnp.square(2 * closer_limit) / 12
+        return ac_mean, ac_var
+    return _init_ac_dist
 
-    @partial(jax.jit, static_argnums=(0,))
-    def transform_action_means(self, free_action_means):
-        transformed_actions = self.low_action + self.multiplicative_factor * free_action_means
-        return transformed_actions
+def trans_ac_dist(ac_lb, scale_fac):
+    def _trans_ac_dict(ac_mean, ac_var):
+        scaled_ac_mean = ac_lb + scale_fac * ac_mean
+        scaled_ac_var = jnp.square(scale_fac) * ac_var
+        return scaled_ac_mean, scaled_ac_var
+    return _trans_ac_dict
 
-    @partial(jax.jit, static_argnums=(0,))
-    def transform_action_variance(self, free_action_variance):
-        return jnp.square(self.multiplicative_factor) * free_action_variance
+
+#####################################
+# Q-function computation graph
+#################################
+
+def rollout_graph(dynamics_dist_fn, reward_dist_fn):
+    def _rollout_graph(d, params):
+        agg_reward, s_mu, s_var, a_mu, a_var = params
+        reward = reward_dist_fn(s_mu, s_var, a_mu[d, :], a_var[d, :])
+        ns_mu, ns_var = dynamics_dist_fn(s_mu, s_var, a_mu[d, :], a_var[d, :])            
+        return agg_reward+reward, ns_mu, ns_var, a_mu, a_var
+    return _rollout_graph
+
+def q(noise_dist, depth, rollout_fn):
+    def _q(s, a_mu, a_var):
+        """
+        Compute the Q-function for a single restart
+        """
+        noise_mean, noise_var = noise_dist
+        # augment state by adding variable for noise    
+        s_mu = jnp.concatenate([s, noise_mean], axis=0)
+        s_var = jnp.concatenate([s*0, noise_var], axis=0)
+
+        init_rew = jnp.array([0.0])
+        init_params = (init_rew, s_mu, s_var, a_mu, a_var)
+        agg_rew, _, _, _, _ = jax.lax.fori_loop( 0, depth, rollout_fn, init_params)
+        return agg_rew.sum()
+    return _q
     
-    
-    # Computes the diagonal of hessian. Need to add sparsity multiplier.
-    def diag_hessian_of_reward(self, s, a, wrt):
-        stacked_hessian = self.hessian(self.reward_fn, wrt)(s, a, self.env)
-        return jax.numpy.diagonal(stacked_hessian, axis1=0, axis2=1)
+def grad_q(q):    
+    def _grad_q(s, ac_mu, ac_var):
+        """
+        Compute the gradient of Q-function for a single restart
+        """
+        grads = jax.grad(q, argnums=(1,2))(s, ac_mu, ac_var)
+        return grads[0], grads[1]
+    return _grad_q
 
-    def second_order_partials_for_reward(self, operands):
-        state_means, action_means = operands
-        sop_wrt_state  = self.diag_hessian_of_reward(state_means, action_means, 0) 
-        sop_wrt_action = self.diag_hessian_of_reward(state_means, action_means, 1)
-        return sop_wrt_state, sop_wrt_action 
+#####################################
+# Dynamics Distribution Fn
+#####################################
 
-    def reward_fn_non_taylor(self, s_mean, s_var, a_mean, a_var, env):
-        return self.reward_fn(s_mean, a_mean, env)
-
-    def reward_fn_taylor(self, s_mean, s_var, a_mean, a_var, env):
-        reward_for_mean_tau = self.reward_fn(s_mean, a_mean, env)
+# No variance mode
+def dynamics_nv(ns_fn, env, noise_dist, n_real_var, n_bin_var):
+    def _dynamics_nv(s_mu, s_var, a_mu, a_var):
+        ns = ns_fn(s_mu, a_mu, env)
         
-        (sop_wrt_state, sop_wrt_action) = self.second_order_partials_for_reward((s_mean, a_mean))
+        mu_for_bin = jnp.clip(ns_mu[n_real_var:n_real_var + n_bin_var], 0, 1)
+        ns_mu = ns_mu.at[n_real_var:n_real_var + n_bin_var].set(mu_for_bin)
+        
+        noise_mean, noise_var = noise_dist
+        ns_mu = jnp.concatenate([ns, noise_mean], axis=0)
+        ns_var = jnp.concatenate([jnp.zeros_like(ns), noise_var], axis=0)
+
+        return ns_mu, ns_var
+    return _dynamics_nv
+
+# Complete Mode
+def dynamics_comp(ns_fn, env, fop_fn, sop_fn, noise_dist, n_real_var, n_bin_var):
+    def _dynamics_comp(s_mu, s_var, a_mu, a_var):
+        ns = ns_fn(s_mu, a_mu, env)
+        
+        fop_wrt_s, fop_wrt_ac = fop_fn(s_mu, a_mu)
+        sop_wrt_s, sop_wrt_ac = sop_fn(s_mu, a_mu)
 
         # Taylor's expansion
-        return reward_for_mean_tau + 0.5*(jnp.multiply(sop_wrt_action, a_var).sum(axis=0) + jnp.multiply(sop_wrt_state, s_var).sum(axis=0))
+        ns_mu = ns + 0.5*(jnp.multiply(sop_wrt_ac, a_var).sum(axis=1) + jnp.multiply(sop_wrt_s, s_var).sum(axis=1))
+        ns_var = jnp.multiply(jnp.square(fop_wrt_ac), a_var).sum(axis=1) + jnp.multiply(jnp.square(fop_wrt_s), s_var).sum(axis=1)
+        
+        # Clip mean for binary variables
+        mu_for_bin = jnp.clip(ns_mu[n_real_var:n_real_var + n_bin_var], 0, 1)
+        ns_mu = ns_mu.at[n_real_var:n_real_var + n_bin_var].set(mu_for_bin)
+        
+        # Reset variance for binary variables
+        var_for_bin = mu_for_bin*(1-mu_for_bin)
+        ns_var = ns_var.at[n_real_var:n_real_var + n_bin_var].set(var_for_bin)
+
+        noise_mean, noise_var = noise_dist
+        ns_mu = jnp.concatenate([ns_mu, noise_mean], axis=0)
+        ns_var = jnp.concatenate([ns_var, noise_var], axis=0)
+
+        return ns_mu, ns_var
+    return _dynamics_comp
+
+#####################################
+# Reward distribution fn
+#####################################
+
+def reward_mean(reward_fn, env):
+    def _reward_mean(s_mu, s_var, ac_mu, ac_var):
+        return reward_fn(s_mu, ac_mu, env)
+    return _reward_mean
+
+def reward_comp(reward_fn, env):
+    def _reward_comp(s_mu, s_var, ac_mu, ac_var):
+        reward_mu = reward_fn(s_mu, ac_mu, env)
+        def _diag_hessian(wrt):
+            hess = jax.hessian(reward_fn, wrt)(s_mu, ac_mu, env)
+            return jax.numpy.diagonal(hess, axis1=0, axis2=1)
+        sop_wrt_s = _diag_hessian(0)
+        sop_wrt_ac = _diag_hessian(1)
+
+        return reward_mu + 0.5*(jnp.multiply(sop_wrt_ac, ac_var).sum(axis=0) + 
+                                jnp.multiply(sop_wrt_s, s_var).sum(axis=0))
+    return _reward_comp
+
+#########################################
+# Functions for computing partials - Analytic
+###########################################
+
+def fop_analytic(ns_fn, env):
+    def _fop_analytic(s_mu, ac_mu):
+        return jax.jacfwd(ns_fn, argnums=(0, 1))(s_mu, ac_mu, env)
+    return _fop_analytic
+
+def sop_analytic(ns_fn, env):
+    def _sop_analytic(s_mu, ac_mu):
+        def _diag_hessian(wrt):
+            hess = jax.hessian(ns_fn, wrt)(s_mu, ac_mu, env)
+            return jax.numpy.diagonal(hess, axis1=1, axis2=2)
+        # TODO: Compute in one call
+        sop_wrt_s = _diag_hessian(0)
+        sop_wrt_ac = _diag_hessian(1)
+        return sop_wrt_s, sop_wrt_ac
+    return _sop_analytic

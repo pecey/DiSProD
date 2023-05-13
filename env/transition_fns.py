@@ -138,17 +138,17 @@ def cartpole(state, actions, env):
 
 def continuous_cartpole_hybrid(state, action, env):
     if len(state) == 6:
-        x, x_dot, theta, theta_dot, left_of_marker, noise = state
+        x, x_dot, theta, theta_dot, left_of_marker, normal_noise = state
         uniform_noise = 0
     else:
-        x, x_dot, theta, theta_dot, left_of_marker, noise, uniform_noise = state
+        x, x_dot, theta, theta_dot, left_of_marker, normal_noise, uniform_noise = state
     
     shaky_action = action[0] #if env.ignore_shaky_in_planner else action[0] + 5 * token * noise 
     force = env.force_mag * shaky_action
 
     sin_theta = jnp.sin(theta)
     cos_theta = jnp.cos(theta)
-    force += env.alpha * noise
+    force += env.alpha * normal_noise
     
     temp = (force + env.polemass_length * theta_dot ** 2 * sin_theta) / env.total_mass
     theta_acc = (env.gravity * sin_theta - cos_theta * temp) / (
