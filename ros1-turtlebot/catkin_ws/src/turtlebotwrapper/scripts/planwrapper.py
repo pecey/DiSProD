@@ -1,8 +1,4 @@
 import argparse
-from ast import Raise
-import imp
-from logging import shutdown
-
 import rospy
 import numpy as np
 import sys
@@ -11,23 +7,16 @@ import xml.etree.ElementTree as ET
 import json
 import tf
 from omegaconf import OmegaConf
-import torch as T
 import time
-import jax.numpy as jnp
-from matplotlib import pyplot as plt
 from datetime import date
 import jax
 
-
-
-
 DISPROD_PATH = os.getenv("DISPROD_PATH")
 sys.path.append(DISPROD_PATH)
-sys.path.append(os.path.join(DISPROD_PATH, "ros1-sogbofa-turtlebot"))
+sys.path.append(os.path.join(DISPROD_PATH, "ros1-turtlebot"))
 DISPROD_CONF_PATH = os.path.join(DISPROD_PATH, "config")
-DISPROD_MOD_PATH = os.path.join(DISPROD_PATH, "ros1-sogbofa-turtlebot/catkin_ws/sdf_models")
+DISPROD_MOD_PATH = os.path.join(DISPROD_PATH, "ros1-turtlebot/catkin_ws/sdf_models")
 from visualization_helpers.marker_array_rviz import PoseArrayRviz
-
 
 from geometry_msgs.msg import Twist, Point, TwistStamped
 from nav_msgs.msg import Odometry
@@ -37,8 +26,8 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 # note: this fails for local import so I moved it to global Python path
 # from .planalg import planalg
-from utils.common_utils import print_, set_global_seeds, prepare_config , load_method , load_config_if_exists
-from planners.ros_interface import setup_jax_model, setup_planner , setup_mbrl_agent , setup_torch_model
+from utils.common_utils import print_, set_global_seeds, prepare_config, load_method
+from planners.ros_interface import setup_planner
 from pathlib import Path
 
 
@@ -65,22 +54,11 @@ def setup_output_dirs(cfg, run_name):
     Path(base_dir).mkdir(parents=True, exist_ok=True)
     cfg["results_dir"] = base_dir
 
-    model_dir = f"{base_dir}/model"
-    Path(model_dir).mkdir(parents=True, exist_ok=True)
-    cfg["model_dir"] = model_dir
-
-    data_dir = f"{base_dir}/data"
-    Path(data_dir).mkdir(parents=True, exist_ok=True)
-    cfg["data_dir"] = data_dir
-
     log_dir = f"{base_dir}/logs"
     Path(log_dir).mkdir(parents=True, exist_ok=True)
     cfg["log_dir"] = log_dir
     cfg["log_file"] = f"{log_dir}/output.log"
 
-    graph_dir = f"{base_dir}/graphs"
-    Path(graph_dir).mkdir(parents=True, exist_ok=True)
-    cfg["graph_dir"] = graph_dir
     print(f"Output is available in: {base_dir}")
     return base_dir
 
@@ -94,9 +72,6 @@ def update_config_with_args(cfg, args):
             else:
                 cfg[key] = getattr(args, key)
 
-    # Overwrite dynamics model path if value is set.
-    if args.__contains__("dynamics_model_path") and getattr(args, "dynamics_model_path"):
-        cfg["dynamics_model_path"] = args.dynamics_model_path
 
     # If run_name is set, the update in config. Else set default value to {running_mode}_{current_time}
     if args.__contains__("run_name") and getattr(args, "run_name"):
@@ -108,14 +83,9 @@ def update_config_with_args(cfg, args):
         cfg["run_name"] = f"{today.strftime('%y-%m-%d')}_{cfg['mode']}_{int(time.time())}"
 
     # Update config for dubins car
-    if "dubins" in cfg["env_name"]:
-        if getattr(args, "obstacles_config_file").lower() == "none":
-            cfg["obstacles_config_path"] = None
-        else:
-            cfg["obstacles_config_path"] = f"{DISPROD_PATH}/env/assets/{args.obstacles_config_file}.json"
-            cfg["map_name"] = args.map_name
+    cfg["obstacles_config_path"] = f"{DISPROD_PATH}/env/assets/dubins.json"
+    cfg["map_name"] = args.map_name
 
-    cfg['nn_model'] = False
     return cfg
 
 
@@ -230,61 +200,9 @@ class TurtleBotWrapper:
         else:
             print(f"Vehicle model {self.vehicle_model} not implemented")
             raise NotImplementedError
-
-    def plot_actual_vs_predicted_states(self, actual_states, predicted_states, predicted_variance, filename):
-        nS = actual_states.shape[1]
-        n_timesteps = len(actual_states)
-        height = 5 * nS if nS > 2 else 12
-        width = n_timesteps // 25 if n_timesteps > 200 else 8
-        fig, axs = plt.subplots(nS, figsize=(width, height))
-        timesteps = list(range(n_timesteps))
-        for i in range(nS):
-            axs[i].plot(timesteps, actual_states[:, i], 'o-', label="Actual")
-            axs[i].plot(timesteps, predicted_states[:, i], 'b-', label="Predicted")
-            axs[i].fill_between(timesteps, predicted_states[:, i] - predicted_variance[:, i],
-                                predicted_states[:, i] + predicted_variance[:, i], alpha=0.2, color="blue")
-            axs[i].set_title(f"State {i}")
-            axs[i].legend()
-            axs[i].grid()
-        plt.tight_layout()
-        path = f"{self.env_config['graph_dir']}/{filename}_model_accuracy.svg"
-        plt.savefig(path, format='svg')
-        plt.close()
-
-
-    def plot_actual_vs_predicted_states_full(self, actual_states, predicted_states, filename):
-        nS = actual_states.shape[1]
-        n_timesteps = len(actual_states)
-        height = 5 * nS if nS > 2 else 12
-        width = n_timesteps // 25 if n_timesteps > 200 else 8
-        fig, axs = plt.subplots(nS, figsize=(width, height))
-        timesteps = list(range(n_timesteps))
-        for i in range(nS):
-            axs[i].plot(timesteps, actual_states[:, i], 'o-', label="Actual")
-            axs[i].plot(timesteps, predicted_states[:, i], 'b-', label="Predicted")
-            axs[i].set_title(f"State {i}")
-            axs[i].legend()
-            axs[i].grid()
-        plt.tight_layout()
-        path = f"{self.env_config['graph_dir']}/{filename}_model_accuracy.svg"
-        plt.savefig(path, format='svg')
-        plt.close()
+        
 
     def shutdownHook(self):
-
-        if self.compare_with_simulator:
-
-        #self.plot_actual_vs_predicted_states(np.array(self.target_deltas),
-        #                                     np.array(self.predicted_delta_mus),
-        #                                     np.array(self.predicted_delta_vars),
-        #                                     filename=f"policy_traj")
-
-            self.plot_actual_vs_predicted_states_full(
-                np.array(self.true_next_states)[:40],
-                np.array(self.predicted_next_state_model)[:40] , 
-                filename = f"policy_traj_full"
-            )
-        
         os.system("rosservice call gazebo/delete_model '{model_name: turtlebot3_burger}'")
         
         for idx in range(self.obstacle_length):
@@ -425,26 +343,6 @@ class TurtleBotWrapper:
         print(f"Action generated after time {time2 - time1}")
         
         
-        if self.compare_with_simulator:
-            true_next_state = np.array([self.pose['x_pos'], self.pose['y_pos'], self.pose['yaw'], self.last_linear_vel, self.last_angular_vel][:self.env.nS]).reshape(-1 , 1)
-            true_action = np.array([true_action[0] , true_action[1]]).reshape(-1 , 1)
-            state = state.reshape(-1,1)
-            x = jnp.concatenate(((self.state_for_model.reshape(-1 , 1)), true_action))
-            predicted_delta_mu, predicted_delta_var = self.jax_model.forward(x)
-
-            self.state_for_model += predicted_delta_mu
-
-            self.predicted_delta_mus.append(predicted_delta_mu)
-            self.predicted_delta_vars.append(predicted_delta_var)
-            self.target_deltas.append(true_next_state - state)
-
-
-            self.true_next_states.append(true_next_state)
-            self.predicted_next_state_model.append(self.state_for_model)
-        
-            
-
-        
         if self.fixed_time_mode == True:
             self.command_generated = cmd
             self.action_generated = True
@@ -476,10 +374,9 @@ class TurtleBotWrapper:
 
     def imag_trajec_pub(self , imag_traj):
         self.pose_array_viz.publish(imag_traj)
+        
     def planner_reset(self):
         self.planner.reset()
-    
-    
     
 
 def create_track_marker(h , k , alpha , scale_x , scale_y , pub , c):
@@ -506,20 +403,13 @@ def create_track_marker(h , k , alpha , scale_x , scale_y , pub , c):
     goal.pose.position.z = 0.1
     pub.publish(goal)
 
-
-
 def generate_stamped_command_message(cmd,count):
     # for visualization
     stamped_cmd = TwistStamped()
     stamped_cmd.twist = cmd
     stamped_cmd.header.seq = count 
     stamped_cmd.header.frame_id = "odom"
-
-
-    
     return stamped_cmd
-
-
 
 def generate_command_message(action):
     cmd = Twist()
@@ -528,7 +418,6 @@ def generate_command_message(action):
     cmd.linear.x = max(0 , action[0])
     cmd.angular.z = action[1]
     return cmd
-
 
 # Read configuration from file
 def get_configuration(config_path, config_num):
@@ -543,38 +432,6 @@ def get_configuration(config_path, config_num):
     return None
 
 
-def update_config_with_args(cfg, args):
-    keys_to_update = ["seed", "log_file", "render", "depth", "run_name", "alg" , "nn_model"]
-    for key in keys_to_update:
-        if args.__contains__(key) and getattr(args,key) is not None:
-            if key in ["render", "compute_baseline"]:
-                cfg[key] = getattr(args, key).lower() == "true"
-            else:
-                cfg[key] = getattr(args, key)
-
-    # Overwrite dynamics model path if value is set.
-    if args.__contains__("dynamics_model_path") and getattr(args, "dynamics_model_path"):
-        cfg["dynamics_model_path"] = args.dynamics_model_path
-
-    # If run_name is set, the update in config. Else set default value to {running_mode}_{current_time}
-    if args.__contains__("run_name") and getattr(args, "run_name"):
-        cfg["run_name"] = args.run_name
-    else:
-        today = date.today()
-        cfg["run_name"] = f"{today.strftime('%y-%m-%d')}_{cfg['mode']}_{int(time.time())}"
-
-    # Update config for dubins car
-    if "dubins" in cfg["env_name"]:
-        if getattr(args, "obstacles_config_file").lower() == "none":
-            cfg["obstacles_config_path"] = None
-        else:
-            cfg["obstacles_config_path"] = f"{DISPROD_PATH}/env/assets/{args.obstacles_config_file}.json"
-            print("Map name is " , args.map_name)
-            cfg["map_name"] = args.map_name
-    return cfg
-
-
-
 
 def prepare_config(planner, env_name, cfg_path=None):
     if planner == "naive":
@@ -582,21 +439,14 @@ def prepare_config(planner, env_name, cfg_path=None):
         
     planner_default_cfg = OmegaConf.load(f"{cfg_path}/planning/default.yaml")
     default_cfg = OmegaConf.load(f"{cfg_path}/default.yaml")
-    sogbofa_default_cfg = OmegaConf.load(f"{cfg_path}/sogbofa_default.yaml")
     planner_env_cfg = OmegaConf.load(f"{cfg_path}/planning/{env_name}.yaml")
-    learning_env_cfg = OmegaConf.load(f"{cfg_path}/learning/{env_name}.yaml")
-    learning_default_cfg = OmegaConf.load(f"{cfg_path}/learning/default.yaml")
-    return OmegaConf.merge(default_cfg , planner_default_cfg,  sogbofa_default_cfg, planner_env_cfg, learning_default_cfg , learning_env_cfg,OmegaConf.load(f"{cfg_path}/{env_name}.yaml"))
+    return OmegaConf.merge(default_cfg , planner_default_cfg, planner_env_cfg, OmegaConf.load(f"{cfg_path}/{env_name}.yaml"))
 
 
 def main(args):
-    device = "cuda" if T.cuda.is_available() else "cpu"
     env_cfg = prepare_config(args.alg, args.env, DISPROD_CONF_PATH)
     env_cfg['mode'] = 'tbot_evaluation'
-    env_cfg = update_config_with_args(env_cfg, args)
-    env_cfg["device"] = device
-    env_cfg = update_config_with_args(env_cfg , args)
-    
+    env_cfg = update_config_with_args(env_cfg, args)    
     
     set_global_seeds(env_cfg['seed'])
 
@@ -611,44 +461,21 @@ def main(args):
 
     setup_output_dirs(env_cfg, run_name)
 
-    tw.compare_with_simulator = args.compare_with_simulator
-
     if args.poseVisualization:
         tw.pose_array_viz = PoseArrayRviz(depth, restart)
     else:
         tw.pose_array_viz = None 
 
        
-    
-    if args.alg == 'sogbofa':
+    if args.alg == 'disprod':
         tw.plan_one_step = load_method(env_cfg['ros_interface'])
     else:
         tw.plan_one_step = load_method(env_cfg['baseline_ros_interface'])
-    # model is either clip_dubins_car , learning or dubins_car
-    #### model can be either clip_dubins_car or dubins_car or learning
+   
 
-    env_cfg['nn_model'] = False
     key = jax.random.PRNGKey(args.seed)
     tw.planner = setup_planner(tw.env , env_cfg , key)
-     
-    if env_cfg["nn_model"]:
-        print("Learning module started")
-        if env_cfg['nn_model'] and env_cfg["model"] == "learning":
-            if not os.path.exists(env_cfg['evaluation']['dynamics_model_path']):
-                print(f"File {env_cfg['evaluation']['dynamics_model_path']} does not exist ")
-                import sys 
-                sys.exit()
-        jax_model = setup_jax_model(tw.env, env_cfg)
-        torch_model = setup_torch_model(tw.env, env_cfg)
-        agent = setup_mbrl_agent(tw.env, env_cfg, jax_model, torch_model, tw.planner)
-        agent.update_model_in_planner()
-        dynamics_path = env_cfg["evaluation"]["dynamics_model_path"]
-        tw.jax_model = agent.jax_model
-        agent.sync_jax_model_with_torch(T.load(dynamics_path, map_location=device))
-
-
-    
-    
+      
     tw.render_model(env_cfg["config"]["x"], env_cfg["config"]["y"])
     tw.env.boundaries_as_obstacle()
     tw.goal_x = env_cfg["config"]["goal_x"]
@@ -668,12 +495,12 @@ def main(args):
     while not rospy.is_shutdown():
         curr_step_num = tw.planner_callback(step_num)
         if step_num == curr_step_num:
-            print_(f"{env_cfg['map_name']}  , {step_num}" , env_cfg['log_file'])
+            print_(f"{env_cfg['map_name']}, {step_num}", env_cfg['log_file'])
             rospy.signal_shutdown("Environment is solved") 
 
         if step_num > 400:
             rospy.signal_shutdown("Environment Timeout")
-            print_(f"{env_cfg['map_name']}  , 400" , env_cfg['log_file'])
+            print_(f"{env_cfg['map_name']}, 400", env_cfg['log_file'])
             raise TimeoutError
         step_num = curr_step_num
         rospy.sleep(1/100)
@@ -687,14 +514,10 @@ if __name__ == '__main__':
         parser.add_argument('--seed', type=int, help='Seed for PRNG', default=42)
         parser.add_argument('--env', type=str, default= "continuous_dubins_car_w_velocity")
         parser.add_argument('--noise', type=str, default="False")
-        parser.add_argument('--obstacles_config_file', type=str, help="Config filename without the JSON extension",
-                            default="dubins")
-        parser.add_argument('--compare_with_simulator' , type = bool , help = 'flag to compare the true motion with the learnt dynamics' , default = False)
-        parser.add_argument('--alg', type=str, default="sogbofa")
+        parser.add_argument('--alg', type=str, default="disprod")
         parser.add_argument('--mode', type=str, default="evaluation")
         parser.add_argument('--poseVisualization', type=bool, default=True)
         parser.add_argument('--map_name', type=str, help="Specify the map name to be used. Only called if dubins or continuous dubins env", default="random")
-        parser.add_argument('--nn_model',  help="If true nn based model will be used",type = bool, default=False)
         parser.add_argument('--run_name', type = str)
         
         args = parser.parse_args()

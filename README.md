@@ -61,6 +61,10 @@ where `alg` is one of `disprod`, `cem` or `mppi` and `alpha_val` controls the am
 - `utils` contains helper methods that are used in various places.
 
 
+#### Experiments with ROS
+
+- Instructions for experiments with TurtleBot can be found in [ros1-turtlebot/README.md](ros1-turtlebot/README.md)
+
 ## Bibtex
 If you find this work useful, please cite
 
