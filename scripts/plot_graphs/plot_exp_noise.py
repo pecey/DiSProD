@@ -39,7 +39,7 @@ master_mapping = {"cartpole": {"env_name": "continuous-cartpole-v1",
 alg_mapping = {
     "cem": "CEM",
     "mppi": "MPPI",
-    "sogbofa": "DSSPD"
+     "disprod": "DiSProD"
 }
 
 DISPROD_PATH = os.getenv("DISPROD_PATH")
@@ -54,9 +54,9 @@ def main():
     title = master_mapping[env]["title"]
     alphas = master_mapping[env]["alphas"]
 
-    algorithms =["cem", "mppi", "sogbofa"]
+    algorithms =["cem", "mppi", "disprod"]
 
-    run_base_path = f"/N/u/palchatt/BigRed3/awesome-sogbofa/results/{env_name}/planning/{run_name}"
+    run_base_path = f"{DISPROD_RESULTS_PATH}/{env_name}/planning/{run_name}"
 
     statistics = {}
     statistics_grouped = {}

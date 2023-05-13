@@ -68,7 +68,7 @@ def main():
 
     algorithms =["cem", "sogbofa"]
 
-    run_base_path = f"/home/ashutosh/updated_codes/awesome-sogbofa/results/{env_name}/planning"
+    run_base_path = f"{DISPROD_RESULTS_PATH}/{env_name}/planning"
 
     statistics = {}
 

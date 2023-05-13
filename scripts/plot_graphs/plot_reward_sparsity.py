@@ -29,7 +29,7 @@ master_mapping = {"mountain_car": {"env_name": "sparse-continuous-mountain-car-v
 alg_mapping = {
     "cem": "CEM",
     "mppi": "MPPI",
-    "sogbofa": "DSSPD"
+    "disprod": "DiSProD"
 }
 
 DISPROD_PATH = os.getenv("DISPROD_PATH")
@@ -45,9 +45,9 @@ def main():
     title = master_mapping[env]["title"]
     sparsity_values = master_mapping[env]["sparsity_values"]
 
-    algorithms =["cem", "mppi", "sogbofa"]
+    algorithms =["cem", "mppi", "disprod"]
 
-    run_base_path = f"/N/u/palchatt/BigRed3/awesome-sogbofa/results/{env_name}/planning/{run_name}"
+    run_base_path = f"{DISPROD_RESULTS_PATH}/{env_name}/planning/{run_name}"
 
     statistics = {}
 

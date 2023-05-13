@@ -39,8 +39,8 @@ start_time=`(date +%s)`
 echo Start time: ${start_time}
 
 source ${HOME}/deeprl_py3.9/bin/activate
-cd ${HOME}/disprod
-export DISPROD_PATH=${HOME}/disprod
+cd ${DISPROD_PATH}
+ 
 
 PYTHONPATH=. python run_gym.py --env=${env} --run_name=${run_name} --${option_name}=${n_sample} --n_episodes=48 --alg=${alg} --depth=${depth} --alpha=${alpha_val} --render=False 
 

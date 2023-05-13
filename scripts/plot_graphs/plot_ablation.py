@@ -47,7 +47,7 @@ mode_mapping = {
     "no_var": "Mean"
 }
 
-DISPROD_PATH = os.path.join(os.getenv("HOME"), "awesome-sogbofa")
+DISPROD_PATH = os.path.join(os.getenv("DISPROD_PATH"), "DiSProD")
 DISPROD_RESULTS_PATH = os.path.join(DISPROD_PATH, "results")
 
 def main():
@@ -59,7 +59,7 @@ def main():
 
     modes=['complete', 'state_var_only', 'action_var_only', 'no_var']
 
-    run_base_path = f"/geode2/home/u070/palchatt/BigRed3/awesome-sogbofa/results/{env_name}/planning/{run_name}"
+    run_base_path = f"{DISPROD_RESULTS_PATH}/{env_name}/planning/{run_name}"
 
     statistics = {}
 

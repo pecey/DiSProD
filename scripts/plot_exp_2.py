@@ -28,7 +28,7 @@ env_name_mapping = {
 alg_mapping = {
     "cem": "CEM",
     "mppi": "MPPI",
-    "sogbofa": "DSSPD"
+     "disprod": "DiSProD"
 }
 
 DISPROD_PATH = os.getenv("DISPROD_PATH")
