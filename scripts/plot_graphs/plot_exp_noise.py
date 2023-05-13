@@ -2,10 +2,8 @@ import matplotlib as mpl
 mpl.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
-import argparse
 import os
 import json
-import glob
 from scipy.io import loadmat
 
 
@@ -47,6 +45,7 @@ DISPROD_RESULTS_PATH = os.path.join(DISPROD_PATH, "results")
 
 
 def main():
+    # Update the following to generate the relevant graph
     run_name = "10-05-2022-exp-noise"
     env = "cartpole"
 
