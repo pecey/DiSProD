@@ -80,10 +80,9 @@ rosrun turtlebotwrapper planwrapper.py --alg disprod --map_name no-ob-1
 - `--seed`: Seed for the Pseudo Random Number Generator (PRNG). Default is `42`.
 - `--env`: The environment to be used. Default is `continuous_dubins_car_w_velocity`. Note: this configuration can also be used for boat experiments.
 - `--noise`: A flag that indicates whether to add noise to the system. Default is `False`.
-- `--obstacles_config_file`: The name of the config file for obstacles. Default is `dubins`.
 - `--alg`: The algorithm to be used. Default is `disprod`. Options are `mppi`, `cem`, and `disprod`.
 - `--poseVisualization`: A flag that indicates whether to visualize the pose of the system. Default is `True`.
-- `--map_name`: The name of the map to be used. Only applicable if using `dubins` or `continuous dubins` environment. More information on the maps can be found here env/assets/dubins.json
+- `--map_name`: The name of the map to be used. The default map configs are located in `env/assets/dubins.json`
 - `--run_name`: The name of the run. Can be used to identify different runs. No default value.
 - `--vehicle_type`: The type of vehicle to be used. Default is `turtlebot`. Options are `turtlebot` and `uuv`.
 - `--control`: The type of control to be used. Default is `self`. Options are `self` (publishes message to `/cmd_vel`) and `pid` (publishes to the PID controller).
@@ -91,4 +90,4 @@ rosrun turtlebotwrapper planwrapper.py --alg disprod --map_name no-ob-1
 
 ### No-var mode
 
-To run the experiments in no variance mode, update disprod[taylor_expansion_mode] in config/continuous_dubins_car_w_velocity.yaml
+To run the experiments in no variance mode, set `taylor_expansion_mode = no_var` in `config/continuous_dubins_car_w_velocity.yaml`
