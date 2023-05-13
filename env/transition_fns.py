@@ -1,21 +1,18 @@
 import jax.numpy as jnp
 import jax
 from jax import custom_jvp
-import torch as T
-import numpy as np
-from utils.reward_utils import is_between_smooth
 
 DEGREE_TO_RADIAN_MULTIPLIER = jnp.pi / 180
 
 
-def simple_env(state, actions, env, alpha=0.0):
+def simple_env(state, actions, env):
     delta_x, delta_y = actions
     x, y, noise = state
     
     action_x = jnp.power(delta_x, 3)
     action_y = jnp.power(delta_y, 3)
     
-    x_new = jnp.clip(x + action_x + (0.1 * noise + jnp.power(noise,2)) * alpha, env.min_x, env.max_x)
+    x_new = jnp.clip(x + action_x + (0.1 * noise + jnp.power(noise,2)) * env.alpha, env.min_x, env.max_x)
     y_new = jnp.clip(y + action_y, env.min_y, env.max_y)
 
     # x_new = jnp.clip(x + jnp.power(delta_x,3) - (noise + 0.1 * jnp.power(noise,2)) * alpha, env.min_x, env.max_x)
@@ -25,7 +22,7 @@ def simple_env(state, actions, env, alpha=0.0):
     
 
 # Transition function for Dubins Car - Discrete and Continuous
-def dubins_car(state, actions, env, alpha=0.0):
+def dubins_car(state, actions, env):
     left_action, nothing, right_action, brakes = actions
     velocity = (env.turning_velocity * left_action
                 + env.turning_velocity * right_action
@@ -35,19 +32,19 @@ def dubins_car(state, actions, env, alpha=0.0):
                         + env.angular_velocity * right_action
                         + 0 * nothing)
 
-    return _dubins_car(env, state, velocity, angular_velocity, alpha)
+    return _dubins_car(env, state, velocity, angular_velocity)
 
 
-def continuous_dubins_car_w_obstacles(state, actions, env, alpha=0.0):
+def continuous_dubins_car_w_obstacles(state, actions, env):
     velocity, angular_velocity = actions
-    return _dubins_car_w_obstacles(env, state, velocity, angular_velocity, alpha)
+    return _dubins_car_w_obstacles(env, state, velocity, angular_velocity)
 
-def continuous_dubins_car(state, actions, env, alpha=0.0):
+def continuous_dubins_car(state, actions, env):
     velocity, angular_velocity = actions
-    return _dubins_car(env, state, velocity, angular_velocity, alpha)
+    return _dubins_car(env, state, velocity, angular_velocity)
 
 
-def continuous_dubins_car_w_velocity_state(state, actions, env, alpha=0.0):
+def continuous_dubins_car_w_velocity_state(state, actions, env):
     delta_velocity, delta_angular_velocity = actions
     if len(state) == 6:
         x , y, theta, old_velocity, old_angular_velocity, noise = state
@@ -56,7 +53,7 @@ def continuous_dubins_car_w_velocity_state(state, actions, env, alpha=0.0):
         noise = 0
 
     velocity = jnp.clip(old_velocity + delta_velocity, env.min_velocity, env.max_velocity)
-    delta_angular_velocity_ = (alpha * noise + delta_angular_velocity) * env.delta_angular_velocity_multiplier * DEGREE_TO_RADIAN_MULTIPLIER
+    delta_angular_velocity_ = (env.alpha * noise + delta_angular_velocity) * env.delta_angular_velocity_multiplier * DEGREE_TO_RADIAN_MULTIPLIER
     angular_velocity = jnp.clip(old_angular_velocity + delta_angular_velocity_ ,env.min_angular_velocity , env.max_angular_velocity)
 
     dx_dt = velocity * jnp.cos(theta) * env.time_interval
@@ -70,7 +67,7 @@ def continuous_dubins_car_w_velocity_state(state, actions, env, alpha=0.0):
     return jnp.array([x, y, theta, velocity, angular_velocity])
 
 
-def continuous_dubins_car_ablation(state, actions, env, alpha=0.0):
+def continuous_dubins_car_ablation(state, actions, env):
     velocity, angular_velocity = actions
     if len(state) == 4:
         x , y, theta, noise = state
@@ -78,7 +75,7 @@ def continuous_dubins_car_ablation(state, actions, env, alpha=0.0):
         x , y, theta = state
         noise = 0
 
-    angular_velocity = angular_velocity + noise * alpha
+    angular_velocity = angular_velocity + noise * env.alpha
     velocity = jnp.clip(velocity**2, env.min_velocity, env.max_velocity)
 
     dx_dt = velocity * jnp.cos(theta) * env.time_interval
@@ -92,7 +89,7 @@ def continuous_dubins_car_ablation(state, actions, env, alpha=0.0):
     return jnp.array([new_x, new_y, new_theta])
 
 
-def _dubins_car(env, state, velocity,angular_velocity, alpha):
+def _dubins_car(env, state, velocity,angular_velocity):
     if len(state) == 6:
         x, y, theta , _ , _ , _ = state
         noise = 0
@@ -100,7 +97,7 @@ def _dubins_car(env, state, velocity,angular_velocity, alpha):
         x, y, theta, noise = state
     dx_dt = velocity * jnp.cos(theta) * env.time_interval
     dy_dt = velocity * jnp.sin(theta) * env.time_interval
-    dtheta_dt = (env.angular_velocity_multiplier * angular_velocity + alpha * noise) * env.time_interval * DEGREE_TO_RADIAN_MULTIPLIER
+    dtheta_dt = (env.angular_velocity_multiplier * angular_velocity + env.alpha * noise) * env.time_interval * DEGREE_TO_RADIAN_MULTIPLIER
     
     x_new = jnp.clip(x + dx_dt, env.min_x_position, env.max_x_position)
     y_new= jnp.clip(y + dy_dt, env.min_y_position, env.max_y_position)
@@ -111,7 +108,7 @@ def _dubins_car(env, state, velocity,angular_velocity, alpha):
     return new_position
 
 
-def _dubins_car_w_obstacles(env, state, velocity,angular_velocity, alpha):
+def _dubins_car_w_obstacles(env, state, velocity,angular_velocity):
     if len(state) == 3:
         x, y, theta = state
         noise = 0
@@ -119,7 +116,7 @@ def _dubins_car_w_obstacles(env, state, velocity,angular_velocity, alpha):
         x, y, theta, noise = state
     dx_dt = velocity * jnp.cos(theta) * env.time_interval
     dy_dt = velocity * jnp.sin(theta) * env.time_interval
-    dtheta_dt = (angular_velocity + alpha * noise) * env.time_interval * DEGREE_TO_RADIAN_MULTIPLIER
+    dtheta_dt = (angular_velocity + env.alpha * noise) * env.time_interval * DEGREE_TO_RADIAN_MULTIPLIER
     
     x_new = jnp.clip(x + dx_dt, env.min_x_position, env.max_x_position)
     y_new= jnp.clip(y + dy_dt, env.min_y_position, env.max_y_position)
@@ -132,33 +129,14 @@ def _dubins_car_w_obstacles(env, state, velocity,angular_velocity, alpha):
     return (1-collision) * new_position + collision * old_position
 
 
-def _dubins_car_racing(env, state, velocity,angular_velocity,alpha):
-    if len(state) == 5:
-        x, y, theta, _, _ = state
-        noise = 0
-        
-    else:
-        x, y, theta = state[0] , state[1] , state[2]
-        noise = 0
-        
-    
-    dx_dt = velocity * jnp.cos(theta) * env.time_interval
-    dy_dt = velocity * jnp.sin(theta) * env.time_interval
-    dtheta_dt = (angular_velocity + alpha * noise) * env.time_interval * DEGREE_TO_RADIAN_MULTIPLIER
-    
-    x = jnp.clip(x + dx_dt, env.min_x_position, env.max_x_position)
-    y = jnp.clip(y + dy_dt, env.min_y_position, env.max_y_position)
-    zeros = jnp.zeros_like(x)
-    theta = theta + dtheta_dt
-    return jnp.array([x, y, theta , zeros , zeros])
 # Transition function for Cartpole - Discrete and Continuous
-def cartpole(state, actions, env, alpha=0.0):
+def cartpole(state, actions, env):
     left_action, right_action = actions
     force = -env.force_mag * left_action + env.force_mag * right_action
-    return _cartpole(env, state, force, alpha)
+    return _cartpole(env, state, force)
 
 
-def continuous_cartpole_hybrid(state, action, env, alpha=0.0):
+def continuous_cartpole_hybrid(state, action, env):
     if len(state) == 6:
         x, x_dot, theta, theta_dot, left_of_marker, noise = state
         uniform_noise = 0
@@ -170,7 +148,7 @@ def continuous_cartpole_hybrid(state, action, env, alpha=0.0):
 
     sin_theta = jnp.sin(theta)
     cos_theta = jnp.cos(theta)
-    force += alpha * noise
+    force += env.alpha * noise
     
     temp = (force + env.polemass_length * theta_dot ** 2 * sin_theta) / env.total_mass
     theta_acc = (env.gravity * sin_theta - cos_theta * temp) / (
@@ -198,12 +176,12 @@ def continuous_cartpole_hybrid(state, action, env, alpha=0.0):
 
 
 
-def continuous_cartpole(state, action, env, alpha=0.0):
+def continuous_cartpole(state, action, env):
     force = env.force_mag * action
-    return _cartpole(env, state, force[0], alpha)
+    return _cartpole(env, state, force[0])
 
 
-def _cartpole(env, state, force, alpha):
+def _cartpole(env, state, force):
     if len(state) == 4:
         x, x_dot, theta, theta_dot = state
         noise = 0
@@ -212,7 +190,7 @@ def _cartpole(env, state, force, alpha):
 
     sin_theta = jnp.sin(theta)
     cos_theta = jnp.cos(theta)
-    force += alpha * noise
+    force += env.alpha * noise
     temp = (force + env.polemass_length * theta_dot ** 2 * sin_theta) / env.total_mass
     theta_acc = (env.gravity * sin_theta - cos_theta * temp) / (
             env.length * (4.0 / 3.0 - env.masspole * cos_theta ** 2 / env.total_mass))
@@ -227,26 +205,26 @@ def _cartpole(env, state, force, alpha):
 
 
 # Transition Function for Mountain Car - Discrete and Continuous
-def mountain_car(state, actions, env, alpha=0.0):
+def mountain_car(state, actions, env):
     left, nothing, right = actions
     force = (right * env.force) + (left * - env.force) + nothing * 0
-    return _mountain_car(env, state, force, alpha)
+    return _mountain_car(env, state, force)
 
 
-def continuous_mountain_car(state, actions, env, alpha=0.0):
+def continuous_mountain_car(state, actions, env):
     force = actions[0]    
     # Compute the next state
     force = jnp.clip(force, env.min_action, env.max_action) * env.power
-    return _mountain_car(env, state, force, alpha)
+    return _mountain_car(env, state, force)
 
-def continuous_mountain_car_high_dim(state, actions, env, alpha=0.0):
+def continuous_mountain_car_high_dim(state, actions, env):
     force = actions[0]    
     # Compute the next state
     force = jnp.clip(force, env.min_action, env.max_action) * env.power
-    return _mountain_car(env, state, force, alpha)
+    return _mountain_car(env, state, force)
 
 
-def _mountain_car(env, state, force, alpha):
+def _mountain_car(env, state, force):
     if len(state) == 2:
         position, velocity = state
         noise = 0
@@ -254,7 +232,7 @@ def _mountain_car(env, state, force, alpha):
         position, velocity, noise = state
 
     # Add noise
-    force += alpha * noise
+    force += env.alpha * noise
     cos_position = jnp.cos(3 * position)
     velocity = velocity + force - 0.0025 * cos_position
 
@@ -265,7 +243,7 @@ def _mountain_car(env, state, force, alpha):
     return jnp.array([position, velocity])
 
 
-def pendulum(state, action, env, alpha=0.0):
+def pendulum(state, action, env):
     if len(state) == 4:
         theta, cos_theta, sin_theta, thdot = state 
         noise = 0
@@ -280,7 +258,7 @@ def pendulum(state, action, env, alpha=0.0):
 
     newthdot = thdot + (3 * g / (2 * l) * jnp.sin(theta) + 3.0 / (m * l ** 2) * u) * dt
     newthdot = jnp.clip(newthdot, -env.max_speed, env.max_speed)
-    newth = theta + (newthdot + alpha * jnp.exp(noise)) * dt
+    newth = theta + (newthdot + env.alpha * jnp.exp(noise)) * dt
 
     return jnp.array([newth, jnp.cos(newth), jnp.sin(newth), newthdot])
 
