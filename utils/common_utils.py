@@ -107,13 +107,8 @@ def load_config_if_exists(path, log_path):
     print_(f"Requested config file not found at : {path}. Skipping", log_path)
     return {}
 
-def prepare_config(env_name, mode, cfg_path=None, log_path=None):
-    if mode not in ["planning"]:
-        raise Exception(f"Unable to parse config files. Unknown mode passed. Mode received: {mode}, but was expecting planning")
-
-    config_files = [f"{cfg_path}/{mode}/default.yaml",
-                    f"{cfg_path}/{mode}/{env_name}.yaml",
-                    f"{cfg_path}/default.yaml",
+def prepare_config(env_name, cfg_path=None, log_path=None):
+    config_files = [f"{cfg_path}/default.yaml",
                     f"{cfg_path}/{env_name}.yaml"]
     config = {}
     for config_file in config_files:

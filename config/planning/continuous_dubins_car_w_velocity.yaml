@@ -1,4 +1,0 @@
-transition_fn: env.transition_fns:continuous_dubins_car_w_velocity_state
-add_obstacles: True
-obstacles_config_path: ???
-model: learning ## or learning

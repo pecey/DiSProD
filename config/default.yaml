@@ -13,6 +13,8 @@ plot_imagined_trajectory: False
 # alpha is the multiplier for injecting Gaussian noise into the system
 alpha: 0
 
+save_as_gif: False
+
 cem:
   n_samples: 200
   optimization_steps: 10

@@ -2,6 +2,7 @@ env_name: continuous-mountain-car-v2
 env_entry_point: env.continuous_mountain_car:Continuous_MountainCarEnv
 max_episode_steps: 200
 depth: 100
+transition_fn: env.transition_fns:continuous_mountain_car
 reward_fn: env.reward_fns:continuous_mountain_car
 discrete: False
 render: True

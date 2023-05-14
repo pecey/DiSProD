@@ -4,6 +4,7 @@ max_episode_steps: 200
 n_restarts: 400
 depth: 100
 lr: 1
+transition_fn: env.transition_fns:continuous_dubins_car_w_velocity_state
 reward_fn: env.reward_fns:continuous_dubins_car_w_velocity
 discrete: False
 noise: False
@@ -19,6 +20,10 @@ vehicle_model: turtlebot ## or jackal
 ros_interface: planners.ros_interface:plan_one_step_dubins_car_w_velocity
 baseline_ros_interface: planners.ros_interface:plan_one_step_dubins_car_w_velocity
 fixed_time_pub_mode: False
+
+add_obstacles: True
+obstacles_config_path: ???
+model: learning ## or learning
 
 
 mppi:

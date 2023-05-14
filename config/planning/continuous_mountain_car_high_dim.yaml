@@ -1,1 +1,0 @@
-transition_fn: env.transition_fns:continuous_mountain_car_high_dim

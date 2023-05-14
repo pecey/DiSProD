@@ -2,6 +2,7 @@ env_name: continuous-cartpole-v1
 env_entry_point: env.continuous_cartpole:CartPoleEnv
 max_episode_steps: 200
 depth: 25
+transition_fn: env.transition_fns:continuous_cartpole
 reward_fn: env.reward_fns:cartpole
 discrete: False
 render: True

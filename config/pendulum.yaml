@@ -2,6 +2,7 @@ env_name: pendulum-v2
 env_entry_point: env.pendulum:PendulumEnv
 max_episode_steps: 200
 depth: 25
+transition_fn: env.transition_fns:pendulum
 reward_fn: env.reward_fns:pendulum
 discrete: False
 render: True

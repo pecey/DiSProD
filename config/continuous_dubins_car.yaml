@@ -4,6 +4,7 @@ max_episode_steps: 200
 n_restarts: 100
 depth: 100
 lr: 0.25
+transition_fn: env.transition_fns:continuous_dubins_car
 reward_fn: env.reward_fns:continuous_dubins_car
 ros_interface: planners.ros_interface:sogbofa_plan_one_step_dubins_car
 baseline_ros_interface: planners.ros_interface:baseline_plan_one_step_dubins_car
@@ -15,3 +16,7 @@ run_mode: production
 vehicle_model: turtlebot
 fixed_time_pub_mode: False
 plot_imagined_trajectory: True
+
+add_obstacles: True
+obstacles_config_path: ???
+model: clip_dubins_car

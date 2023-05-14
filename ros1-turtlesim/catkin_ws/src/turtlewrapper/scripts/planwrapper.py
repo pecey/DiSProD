@@ -140,9 +140,8 @@ def prepare_config(planner, cfg_path=None):
     if planner == "naive":
         return dict()
     env_name = "continuous_dubins_car"
-    planner_default_cfg = OmegaConf.load(f"{cfg_path}/planning/default.yaml")
-    planner_env_cfg = OmegaConf.load(f"{cfg_path}/planning/{env_name}.yaml")
-    return OmegaConf.merge(planner_default_cfg, planner_env_cfg, OmegaConf.load(f"{cfg_path}/{env_name}.yaml"))
+    default_cfg = OmegaConf.load(f"{cfg_path}/default.yaml")
+    return OmegaConf.merge(default_cfg, OmegaConf.load(f"{cfg_path}/{env_name}.yaml"))
 
 
 def main(args):

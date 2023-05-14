@@ -2,6 +2,7 @@ env_name: simple-env-v1
 env_entry_point: env.simple_env:SimpleEnv
 max_episode_steps: 75
 depth: 20
+transition_fn: env.transition_fns:simple_env
 reward_fn: env.reward_fns:simple_env
 discrete: False
 render: True

@@ -21,7 +21,7 @@ To run the planner on an environment:
 ```py
 python run_gym.py --alg=<alg_name> --env=<env_code>
 ```
-`alg_name` can be one of the following: `disprod`, `cem`, `mppi`, `hybrid_disprod` , `hybrid_cem`, while `env_code` can be one of the following codes.
+`alg_name` can be one of the following: `disprod`, `cem`, `mppi`, while `env_code` can be one of the following codes. As shooting algorithms are configured for discrete environments, running `cem` or `mppi` for (Discrete) Cartpole `cp` or (Discrete) Mountain Car `mc` will raise an Exception.
 
 | Environment                               | env_code        |
 | -----------                               | -----------     |
@@ -33,6 +33,7 @@ python run_gym.py --alg=<alg_name> --env=<env_code>
 | Continuous Dubins Car                     | `cdc`           |
 | Continuous Mountain Car - Sparse Rewards  | `cmc_sp`        |
 | Continuous Mountain Car - High Dimension  | `cmc_hd`        |
+| Continuous CartPole - Hybrid              | `ccp_h`         |
 
 
 #### SLURM scripts

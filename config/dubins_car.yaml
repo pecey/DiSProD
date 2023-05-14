@@ -2,9 +2,13 @@ env_name: dubins-car-v0
 env_entry_point: env.dubins_car:DubinsCar
 max_episode_steps: 40
 depth: 15
+transition_fn: env.transition_fns:dubins_car
 reward_fn: env.reward_fns:dubins_car
 discrete: True
 render: True
+
+add_obstacles: True
+obstacles_config_path: ???
 
 disprod:
   step_size: 0.1

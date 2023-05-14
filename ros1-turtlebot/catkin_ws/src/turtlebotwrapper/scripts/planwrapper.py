@@ -437,10 +437,8 @@ def prepare_config(planner, env_name, cfg_path=None):
     if planner == "naive":
         return dict()
         
-    planner_default_cfg = OmegaConf.load(f"{cfg_path}/planning/default.yaml")
     default_cfg = OmegaConf.load(f"{cfg_path}/default.yaml")
-    planner_env_cfg = OmegaConf.load(f"{cfg_path}/planning/{env_name}.yaml")
-    return OmegaConf.merge(default_cfg , planner_default_cfg, planner_env_cfg, OmegaConf.load(f"{cfg_path}/{env_name}.yaml"))
+    return OmegaConf.merge(default_cfg, OmegaConf.load(f"{cfg_path}/{env_name}.yaml"))
 
 
 def main(args):

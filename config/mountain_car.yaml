@@ -2,6 +2,7 @@ env_name: mountain-car-v2
 env_entry_point: env.mountain_car:MountainCarEnv
 max_episode_steps: 200
 depth: 100
+transition_fn: env.transition_fns:mountain_car
 reward_fn: env.reward_fns:mountain_car
 discrete: True
 reward_sparsity: 1

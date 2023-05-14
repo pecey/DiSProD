@@ -78,7 +78,7 @@ def run(cfg, queue, n_episodes, seeds):
 
 def main(args):
     args.env_name = ENV_MAPPING[args.env]
-    cfg = prepare_config(args.env_name, "planning", DISPROD_CONF_PATH)
+    cfg = prepare_config(args.env_name, DISPROD_CONF_PATH)
     cfg = update_config_with_args(cfg, args, base_path=DISPROD_PATH)
     run_name = cfg["run_name"]
 
