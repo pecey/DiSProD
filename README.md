@@ -57,8 +57,8 @@ where `alg` is one of `disprod`, `cem` or `mppi` and `alpha_val` controls the am
 #### Code Structure
 
 - `config` contains domain-specific configuration used by the planners. `config/default.yaml` contains the default config which can be overwritten by using the same key in the domain-specific file.
-- `env` contains the environment files for each of the domains. `env/transition_fns.py` and `env/reward_fns.py` contains the transition functions and the reward functions for each of the domains. The definitions in these files are read by the planner.
-- `planners` contains the planning algorithms. `planners/baseline` contains the code for CEM, MPPI and Hybrid-CEM.
+- `env` contains the environment files for each of the domains. `env/transition_fns.py` and `env/reward_fns.py` contains the transition functions and the reward functions for each of the domains. These functions are provided to the planner via the config files. 
+- `planners` contains the planning algorithms. `continuous_disprod` is for continuous action spaces and can handle both continuous and binary state variables. `discrete_disprod` is for binary action spaces. `planners/baseline` contains the code for CEM and MPPI.
 - `utils` contains helper methods that are used in various places.
 
 

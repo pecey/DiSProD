@@ -2,7 +2,7 @@ import jax
 import jax.numpy as jnp
 
 from functools import partial
-from planners.utils import adam_with_projection
+from planners.utils import adam_with_clipping
 from planners.disprod import Disprod
 
 class ContinuousDisprod(Disprod):
@@ -100,10 +100,10 @@ class ContinuousDisprod(Disprod):
         # Initialize the action distribution
         ac_mean, ac_var = self.ac_dist_init_fn(subkey1, ac_seq)
 
-        opt_init_mean, opt_update_mean, get_params_mean = adam_with_projection(self.step_size)
+        opt_init_mean, opt_update_mean, get_params_mean = adam_with_clipping(self.step_size)
         opt_state_mean = opt_init_mean(ac_mean)
 
-        opt_init_var, opt_update_var, get_params_var = adam_with_projection(self.step_size_var)
+        opt_init_var, opt_update_var, get_params_var = adam_with_clipping(self.step_size_var)
         opt_state_var = opt_init_var(ac_var)
 
         n_grad_steps = 0

@@ -38,6 +38,9 @@ class DiscreteDisprod(Disprod):
         norm_mu, norm_var = 0, 1
         
         noise_dist = (jnp.array([norm_mu]), jnp.array([norm_var]))
+
+        projection = projection_fn(self.nA)
+        self.batch_projection = jax.vmap(projection, in_axes=(0), out_axes=(0))
        
         
         # Dynamics distribution function
@@ -89,7 +92,7 @@ class DiscreteDisprod(Disprod):
         # Initialize the action distribution
         ac = self.ac_dist_init_fn(subkey1, ac_seq)
 
-        opt_init_mean, opt_update_mean, get_params_mean = adam_with_projection(self.step_size)
+        opt_init_mean, opt_update_mean, get_params_mean = adam_with_projection(self.step_size, proj_fn=self.batch_projection)
         opt_state_mean = opt_init_mean(ac)
 
 
@@ -109,7 +112,7 @@ class DiscreteDisprod(Disprod):
             grads = self.batch_grad_q_fn(state, ac_init)
 
             # Update action distribution based on gradients
-            opt_state_mean = opt_update_mean(n_grad_steps, -grads, opt_state_mean, 0, 1)
+            opt_state_mean = opt_update_mean(n_grad_steps, -grads, opt_state_mean)
             ac_mu_upd = get_params_mean(opt_state_mean)
 
             # Compute updated reward
@@ -176,16 +179,16 @@ def init_ac_dist(n_res, depth, nA, low_ac, high_ac):
     return _init_ac_dist
 
 # https://arxiv.org/pdf/1309.1541.pdf
-def projector_fn(nA):
-    def _projector_fn(ac):
+def projection_fn(nA):
+    def _projection_fn(ac):
         ac_sort = jnp.sort(ac)[::-1]
         ac_sort_cumsum = jnp.cumsum(ac_sort)
         rho_candidates = ac_sort + (1 - ac_sort_cumsum)/jnp.arange(1, nA+1)
-        mask = jnp.where(rho_candidates > 0, jnp.arange(nA), -jnp.ones(nA))
+        mask = jnp.where(rho_candidates > 0, jnp.arange(nA, dtype=jnp.int32), -jnp.ones(nA, dtype=jnp.int32))
         rho = jnp.max(mask)
         contrib = (1 - ac_sort_cumsum[rho])/(rho + 1)
         return jax.nn.relu(ac + contrib)
-    return _projector_fn
+    return jax.vmap(_projection_fn, in_axes=0, out_axes=0)
 
 #####################################
 # Q-function computation graph
