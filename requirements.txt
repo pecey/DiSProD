@@ -1,17 +1,15 @@
 Pillow==9.4.0
 gym==0.21.0
+pyglet==1.5.27
 jax==0.3.1
 jaxlib==0.3.0
 matplotlib==3.1.2
 omegaconf==2.1.1
-pytest==7.1.2
 pyvirtualdisplay==3.0
 # rospy==1.15.14
 setuptools==45.2.0
-sympy==1.7.1
 tf==1.13.2
 numpy==1.22.2
-mujoco-py<2.2,>=2.1
 scipy==1.8.0
 tensorflow_probability==0.16.0
 scienceplots
