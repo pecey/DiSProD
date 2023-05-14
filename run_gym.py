@@ -16,7 +16,9 @@ DISPROD_PATH = os.getenv("DISPROD_PATH")
 sys.path.append(DISPROD_PATH)
 DISPROD_CONF_PATH = os.path.join(DISPROD_PATH, "config")
 
-ENV_MAPPING = { "ccp"   : "continuous_cartpole",
+ENV_MAPPING = { "cp": "cartpole",
+               "ccp"   : "continuous_cartpole",
+               "mc": "mountain_car",
                 "cmc"   : "continuous_mountain_car", 
                 "p"     : "pendulum",
                 "ccp_h"  : "continuous_cartpole_hybrid", 
@@ -55,8 +57,8 @@ def run(cfg, queue, n_episodes, seeds):
                 env.render()
             if cfg['save_as_gif']:
                 frames.append(env.render(mode="rgb_array"))
-
-            obs, reward, done, _ = env.step(action)
+            
+            obs, reward, done, _ = env.step(np.array(action))
             total_reward += reward
             
         # Save frames
@@ -138,7 +140,7 @@ def setup_virtual_display():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, choices=["ccp", "cmc", "p", "ccp_h", "cmc_sp", "cdc", "cmc_hd"], required=True)
+    parser.add_argument('--env', type=str, choices=["cp", "ccp", "mc", "cmc", "p", "ccp_h", "cmc_sp", "cdc", "cmc_hd"], required=True)
     parser.add_argument('--render', type=str, default="True")
     parser.add_argument('--seed', type=int, help='Seed for PRNG', default=42)
     parser.add_argument('--run_name', type=str, help='Run Name', default=str(int(time.time())))

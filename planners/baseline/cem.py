@@ -19,8 +19,11 @@ class ShootingCEM():
             self.reward_fn = partial(load_method(cfg.get('reward_fn')), sparsity_multiplier = cfg["reward_sparsity"])
         else:
             self.reward_fn = load_method(cfg.get('reward_fn'))
+            
+        if cfg["discrete"]:
+            raise Exception("Shooting planner not setup for discrete environments")
 
-        self.nA = env.action_space.n if cfg["discrete"] else env.action_space.shape[0]
+        self.nA = env.action_space.shape[0]
         self.nS = cfg.get("nS_out", env.observation_space.shape[0])
 
 
