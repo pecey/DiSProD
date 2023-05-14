@@ -49,7 +49,7 @@ class Continuous_MountainCarEnvHighDim(gym.Env):
         self.viewer = None
         
         self.n_actions = n_actions
-        self.action_cost = 50
+        self.action_cost = 0.1
 
         self.action_space = spaces.Box(
             low=self.min_action,
