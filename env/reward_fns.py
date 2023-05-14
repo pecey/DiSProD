@@ -1,7 +1,6 @@
 import math
 import jax
 import jax.numpy as jnp
-import numpy as np
 
 from utils.reward_utils import angle_normalize, euclidean_distance, get_number_of_collisions, greater_than_or_eq_to
 
@@ -124,9 +123,6 @@ def continuous_mountain_car_high_dim(state, action, env):
     reward =  (done * 100) - reward_action
     return reward
 
-# def continuous_mountain_car(state, action, env):
-#     return continuous_mountain_car_sparse(state, action, env, sparsity_multiplier=1)
-
 # Reward function for continuous mountain car where sparsity multiplier is controlled from the outside.
 def continuous_mountain_car_sparse(state, action, env, sparsity_multiplier):
     position, velocity = state[0], state[1]
@@ -135,16 +131,6 @@ def continuous_mountain_car_sparse(state, action, env, sparsity_multiplier):
     done = position_greater_than_goal * velocity_greater_than_goal
     reward =  ((done * 100) + (-jnp.square(action[0]) * 0.1))
     return reward
-
-
-# # Reward : 100 on done + -0.1 * action^2 for every timestep
-# def continuous_mountain_car_strict(state, action, env):
-#     position, velocity = state[0], state[1]
-#     position_greater_than_goal = greater_than_or_eq_to(position, env.goal_position)
-#     velocity_greater_than_goal = greater_than_or_eq_to(velocity, env.goal_velocity)
-#     done = jnp.tanh(1e7 * (position_greater_than_goal * velocity_greater_than_goal))
-#     reward = done * 100 + (-jnp.square(action[0]) * 0.1)
-#     return reward
 
 
 ###############################################

@@ -4,26 +4,12 @@ from matplotlib import pyplot as plt
 from matplotlib import animation
 import importlib
 import random
-import jax.numpy as jnp
-from jax import random as jax_random
 from omegaconf import OmegaConf
 import os
 from datetime import date
 import time
 from pathlib import Path
 
-
-# # Argmax with random tie-breaks
-# # The 0th-restart is always set to the previous solution
-# def random_argmax(key, x, pref_idx=0):
-#     try:
-#         options = jnp.where(x == jnp.nanmax(x))[0]
-#         val = 0 if 0 in options else jax_random.choice(key, options)
-#     except:
-#         val = jax_random.choice(key, jnp.arange(len(x)))
-#         print(f"All restarts where NaNs. Randomly choosing {val}.")
-#     finally:
-#         return val
 
 
 # Miscellaneous functions
@@ -132,9 +118,9 @@ def update_config_with_args(env_cfg, args, base_path):
         env_cfg["disprod"]["step_size"] = getattr(args, "step_size")
     
     if args.__contains__("n_samples") and getattr(args,"n_samples") is not None:
-        if env_cfg["alg"] in ["cem", "hybrid_cem"]:
+        if env_cfg["alg"] in ["cem"]:
             env_cfg["cem"]["n_samples"] = getattr(args, "n_samples")
-        elif env_cfg["alg"] in ["mppi", "hybrid_mppi"]:
+        elif env_cfg["alg"] in ["mppi"]:
             env_cfg["mppi"]["n_samples"] = getattr(args, "n_samples")
         else:
             raise Exception(f"Cannot set n_samples for alg {env_cfg['alg']}")
@@ -159,11 +145,8 @@ def update_config_with_args(env_cfg, args, base_path):
 
     # Map for dubins        
     if "dubins" in env_cfg["env_name"]:
-        if getattr(args, "obstacles_config_file").lower() == "none":
-            env_cfg["obstacles_config_path"] = None
-        else:
-            env_cfg["obstacles_config_path"] = f"{base_path}/env/assets/{args.obstacles_config_file}.json"
-            env_cfg["map_name"] = args.map_name
+        env_cfg["obstacles_config_path"] = f"{base_path}/env/assets/dubins.json"
+        env_cfg["map_name"] = args.map_name
             
     return env_cfg
 

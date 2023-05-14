@@ -1,8 +1,6 @@
 from matplotlib import pyplot as plt
-from matplotlib.patches import Rectangle
 
 import numpy as np
-import json
 import gym
 from gym import spaces
 

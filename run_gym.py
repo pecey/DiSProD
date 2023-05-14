@@ -148,7 +148,7 @@ if __name__ == "__main__":
     parser.add_argument('--alpha', type=float, help='Controls noise levels in the simulator.')
     parser.add_argument('--reward_sparsity', type=float, help='Controls the sparsity of rewards in the planner.')
     parser.add_argument('--n_episodes', type=int, help='Number of episodes to run the experiment for.')
-    parser.add_argument('--alg', type=str, help='Specify which algorithm to use - DiSProD/MPPI/CEM/Hybrid CEM', choices=['disprod', 'mppi', 'cem', 'hybrid_disprod' , 'hybrid_cem'])
+    parser.add_argument('--alg', type=str, help='Specify which algorithm to use - DiSProD/MPPI/CEM', choices=['disprod', 'mppi', 'cem'])
     parser.add_argument('--obstacles_config_file', type=str, help="Config filename without the JSON extension",
                         default="dubins")
     parser.add_argument('--map_name', type=str, help="Specify the map name to be used. Only called if dubins or continuous dubins env", default="no-ob-1")
