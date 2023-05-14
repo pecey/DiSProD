@@ -50,6 +50,10 @@ class ContinuousDisprod(Disprod):
             fop_fn = fop_analytic(self.ns_fn, env)
             sop_fn = sop_analytic(self.ns_fn, env)
             self.dynamics_dist_fn = dynamics_comp(self.ns_fn, env, fop_fn, sop_fn, noise_dist, self.n_real_var, self.n_bin_var)
+        elif cfg["disprod"]["taylor_expansion_mode"] == "state_var":
+            fop_fn = fop_analytic(self.ns_fn, env)
+            sop_fn = sop_analytic(self.ns_fn, env)
+            self.dynamics_dist_fn = dynamics_sv(self.ns_fn, env, fop_fn, sop_fn, noise_dist, self.n_real_var, self.n_bin_var)
         elif cfg["disprod"]["taylor_expansion_mode"] == "no_var":
             self.dynamics_dist_fn = dynamics_nv(self.ns_fn, env, noise_dist, self.n_real_var, self.n_bin_var)
         else:
@@ -252,8 +256,8 @@ def dynamics_nv(ns_fn, env, noise_dist, n_real_var, n_bin_var):
     def _dynamics_nv(s_mu, s_var, a_mu, a_var):
         ns = ns_fn(s_mu, a_mu, env)
         
-        mu_for_bin = jnp.clip(ns_mu[n_real_var:n_real_var + n_bin_var], 0, 1)
-        ns_mu = ns_mu.at[n_real_var:n_real_var + n_bin_var].set(mu_for_bin)
+        mu_for_bin = jnp.clip(ns[n_real_var:n_real_var + n_bin_var], 0, 1)
+        ns = ns.at[n_real_var:n_real_var + n_bin_var].set(mu_for_bin)
         
         noise_mean, noise_var = noise_dist
         ns_mu = jnp.concatenate([ns, noise_mean], axis=0)
@@ -261,6 +265,33 @@ def dynamics_nv(ns_fn, env, noise_dist, n_real_var, n_bin_var):
 
         return ns_mu, ns_var
     return _dynamics_nv
+
+# State variance mode
+def dynamics_sv(ns_fn, env, fop_fn, sop_fn, noise_dist, n_real_var, n_bin_var):
+    def _dynamics_sv(s_mu, s_var, a_mu, a_var):
+        ns = ns_fn(s_mu, a_mu, env)
+        
+        fop_wrt_s, fop_wrt_ac = fop_fn(s_mu, a_mu)
+        sop_wrt_s, sop_wrt_ac = sop_fn(s_mu, a_mu)
+
+        # Taylor's expansion
+        ns_mu = ns + 0.5*(jnp.multiply(sop_wrt_s, s_var).sum(axis=1))
+        ns_var = jnp.multiply(jnp.square(fop_wrt_s), s_var).sum(axis=1)
+        
+        # Clip mean for binary variables
+        mu_for_bin = jnp.clip(ns_mu[n_real_var:n_real_var + n_bin_var], 0, 1)
+        ns_mu = ns_mu.at[n_real_var:n_real_var + n_bin_var].set(mu_for_bin)
+        
+        # Reset variance for binary variables
+        var_for_bin = mu_for_bin*(1-mu_for_bin)
+        ns_var = ns_var.at[n_real_var:n_real_var + n_bin_var].set(var_for_bin)
+
+        noise_mean, noise_var = noise_dist
+        ns_mu = jnp.concatenate([ns_mu, noise_mean], axis=0)
+        ns_var = jnp.concatenate([ns_var, noise_var], axis=0)
+
+        return ns_mu, ns_var
+    return _dynamics_sv
 
 # Complete Mode
 def dynamics_comp(ns_fn, env, fop_fn, sop_fn, noise_dist, n_real_var, n_bin_var):

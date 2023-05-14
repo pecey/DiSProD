@@ -28,11 +28,12 @@ ENV_MAPPING = { "cp": "cartpole",
 
 def run(cfg, queue, n_episodes, seeds):
     scores = []
-    for idx in range(n_episodes):
-        env = setup_environment(cfg)
+    env = setup_environment(cfg)
+    agent = setup_planner(env, cfg)
+
+    for idx in range(n_episodes):   
         set_global_seeds(seed=seeds[idx], env=env)
         key = jax.random.PRNGKey(seeds[idx])
-        agent = setup_planner(env, cfg, key)
 
         done = False
         total_reward = 0
@@ -73,6 +74,7 @@ def run(cfg, queue, n_episodes, seeds):
         scores.append({"seed": seeds[idx], "returns": total_reward, "steps": n_step})
         if "dubins" in cfg["env_name"]:
             env.save_trajectory(f"{cfg['graph_dir']}", f"{seeds[idx]}_trajectory")
+
     queue.put(scores)
 
 
@@ -158,7 +160,7 @@ if __name__ == "__main__":
     parser.add_argument('--n_samples', type=int, help='Number of samples to sample in CEM/MPPI')
     # DiSProD specific
     parser.add_argument('--step_size', type=float, help='Controls the step-size in DiSProD in the planner')
-    parser.add_argument('--taylor_expansion_mode', type=str, help="Control the use of variance in Taylor's expansion", choices=['complete', 'state_var_only', 'action_var_only', 'no_var'])
+    parser.add_argument('--taylor_expansion_mode', type=str, help="Control the use of variance in Taylor's expansion", choices=['complete', 'state_var', 'no_var'])
     parser.add_argument('--n_restarts', type=int, help='Number of restarts to perform in DiSProD')
     # For experiments with continuous-mountain-car-high-dim
     parser.add_argument('--n_actions', type=int, help="Varying the number of actions. n_actions = n_redundant_actions + 1", default=1)

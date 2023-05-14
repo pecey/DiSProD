@@ -32,6 +32,6 @@ disprod:
   choose_action_mean: False
   reward_fn_using_taylor: True
   max_grad_steps: 10
-  # Modes: complete, action_var_only, no_var
+  # Modes: complete, state_var, no_var
   taylor_expansion_mode: complete
   convergance_threshold: 0.1

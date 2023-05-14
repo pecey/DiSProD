@@ -1,4 +1,4 @@
-def setup_planner(env, env_cfg, key):
+def setup_planner(env, env_cfg):
     if env_cfg["alg"] in ["cem", "mppi"]:
         from planners.baseline.cem import ShootingCEM
         agent = ShootingCEM(env, env_cfg)
