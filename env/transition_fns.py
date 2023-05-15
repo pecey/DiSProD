@@ -5,6 +5,10 @@ from jax import custom_jvp
 DEGREE_TO_RADIAN_MULTIPLIER = jnp.pi / 180
 
 
+#######################################
+# Simple Env
+########################################
+
 def simple_env(state, actions, env):
     delta_x, delta_y = actions
     x, y, noise = state
@@ -13,12 +17,14 @@ def simple_env(state, actions, env):
     action_y = jnp.power(delta_y, 3)
     
     x_new = jnp.clip(x + action_x + (0.1 * noise + jnp.power(noise,2)) * env.alpha, env.min_x, env.max_x)
-    y_new = jnp.clip(y + action_y, env.min_y, env.max_y)
-
-    # x_new = jnp.clip(x + jnp.power(delta_x,3) - (noise + 0.1 * jnp.power(noise,2)) * alpha, env.min_x, env.max_x)
-    # y_new = jnp.clip(y + jnp.power(delta_y,3), env.min_y, env.max_y)    
+    y_new = jnp.clip(y + action_y, env.min_y, env.max_y)   
     
     return jnp.array([x_new, y_new])
+
+
+#############################################
+# Dubins Car
+###############################################
     
 
 # Transition function for Dubins Car - Discrete and Continuous
@@ -33,11 +39,6 @@ def dubins_car(state, actions, env):
                         + 0 * nothing)
 
     return _dubins_car(env, state, velocity, angular_velocity)
-
-
-def continuous_dubins_car_w_obstacles(state, actions, env):
-    velocity, angular_velocity = actions
-    return _dubins_car_w_obstacles(env, state, velocity, angular_velocity)
 
 def continuous_dubins_car(state, actions, env):
     velocity, angular_velocity = actions
@@ -67,28 +68,6 @@ def continuous_dubins_car_w_velocity_state(state, actions, env):
     return jnp.array([x, y, theta, velocity, angular_velocity])
 
 
-def continuous_dubins_car_ablation(state, actions, env):
-    velocity, angular_velocity = actions
-    if len(state) == 4:
-        x , y, theta, noise = state
-    else:
-        x , y, theta = state
-        noise = 0
-
-    angular_velocity = angular_velocity + noise * env.alpha
-    velocity = jnp.clip(velocity**2, env.min_velocity, env.max_velocity)
-
-    dx_dt = velocity * jnp.cos(theta) * env.time_interval
-    dy_dt = velocity * jnp.sin(theta) * env.time_interval
-    dtheta_dt =  angular_velocity * env.time_interval * DEGREE_TO_RADIAN_MULTIPLIER
-
-    new_x = jnp.clip(x + dx_dt, env.min_x_position, env.max_x_position)
-    new_y = jnp.clip(y + dy_dt, env.min_y_position, env.max_y_position)
-    new_theta = theta + dtheta_dt
-
-    return jnp.array([new_x, new_y, new_theta])
-
-
 def _dubins_car(env, state, velocity,angular_velocity):
     if len(state) == 6:
         x, y, theta , _ , _ , _ = state
@@ -107,26 +86,9 @@ def _dubins_car(env, state, velocity,angular_velocity):
 
     return new_position
 
-
-def _dubins_car_w_obstacles(env, state, velocity,angular_velocity):
-    if len(state) == 3:
-        x, y, theta = state
-        noise = 0
-    else:
-        x, y, theta, noise = state
-    dx_dt = velocity * jnp.cos(theta) * env.time_interval
-    dy_dt = velocity * jnp.sin(theta) * env.time_interval
-    dtheta_dt = (angular_velocity + env.alpha * noise) * env.time_interval * DEGREE_TO_RADIAN_MULTIPLIER
-    
-    x_new = jnp.clip(x + dx_dt, env.min_x_position, env.max_x_position)
-    y_new= jnp.clip(y + dy_dt, env.min_y_position, env.max_y_position)
-    theta_new = theta + dtheta_dt
-
-    collision = jnp.tanh(get_number_of_collisions(x_new, y_new, env))
-    new_position = jnp.array([x_new, y_new, theta_new])
-    old_position = jnp.array([x, y, theta])
-
-    return (1-collision) * new_position + collision * old_position
+###################################################
+# Cartpole
+###################################################
 
 
 # Transition function for Cartpole - Discrete and Continuous
@@ -160,7 +122,7 @@ def continuous_cartpole_hybrid(state, action, env):
     theta = theta + env.tau * theta_dot
     theta_dot = theta_dot + env.tau * theta_acc
     
-    p_left_of_marker = jax.nn.sigmoid(5.0*(env.reward_marker - x)) #is_between_smooth(x, env.x_shaky_threshold_left, env.x_shaky_threshold_right)
+    p_left_of_marker = jax.nn.sigmoid(5.0*(env.reward_marker - x))
     left_of_marker = jax.nn.sigmoid(5 * (p_left_of_marker - 0.5 - uniform_noise))
 
     # This is the JAX equivalent of the transition function in the simulator.
@@ -169,8 +131,6 @@ def continuous_cartpole_hybrid(state, action, env):
     # left_of_margin = jnp.where(uniform_noise <= (p_left_of_margin - 0.5), jnp.ones_like(p_left_of_margin), jnp.zeros_like(p_left_of_margin))
     
     return jnp.array([x, x_dot, theta, theta_dot, left_of_marker])
-
-
 
 def continuous_cartpole(state, action, env):
     force = env.force_mag * action
@@ -199,6 +159,9 @@ def _cartpole(env, state, force):
 
     return jnp.array([x, x_dot, theta, theta_dot])
 
+##########################################################
+# Mountain Car
+###########################################################
 
 # Transition Function for Mountain Car - Discrete and Continuous
 def mountain_car(state, actions, env):
@@ -238,6 +201,9 @@ def _mountain_car(env, state, force):
 
     return jnp.array([position, velocity])
 
+###############################################
+# Pendulum
+###############################################
 
 def pendulum(state, action, env):
     if len(state) == 4:
@@ -259,47 +225,3 @@ def pendulum(state, action, env):
     return jnp.array([newth, jnp.cos(newth), jnp.sin(newth), newthdot])
 
 
-@custom_jvp
-def smooth_min(x, threshold):
-    return jnp.minimum(x, threshold)
-
-@smooth_min.defjvp
-def smooth_min_jvp(primals, tangents):
-    x, threshold = primals
-    x_dot, threshold_dot = tangents
-    ans = smooth_min(x, threshold)
-    ans_dot = - jax.nn.sigmoid(threshold - x) * (x_dot)
-    return ans, ans_dot
-
-
-@custom_jvp
-def smooth_max(x, threshold):
-    return jnp.maximum(x, threshold)
-
-@smooth_max.defjvp
-def smooth_max_jvp(primals, tangents):
-    x, threshold = primals
-    x_dot, threshold_dot = tangents
-    ans = smooth_max(x, threshold)
-    ans_dot = jax.nn.sigmoid(x - threshold) * x_dot
-    return ans, ans_dot
-
-def is_between_limits(x, lower_limit, upper_limit):
-    return 1 - jnp.tanh(1e7 * (jax.nn.relu(lower_limit - x) + jax.nn.relu(x - upper_limit)))
-
-def get_number_of_collisions(x, y, env):
-    #obstacles = env.obstacles + env.boundary
-    # collision_score = 1 + T.clamp(outside_x_min + outside_x_max + outside_y_min + outside_y_max, 0, 1) * 9
-    #collision_score = sum([detect_collision_with_rectangular_obstacle(x, y, obstacle) for obstacle in obstacles])
-    collision_scores = detect_collision_with_rectangular_obstacle(x, y, jnp.array(env.obstacle_matrix))
-    return jnp.sum(collision_scores)
-
-def detect_collision_with_rectangular_obstacle(x, y, obstacle):
-    obstacle_buffer = 0.1
-    x_between_limits = is_between_limits(x, obstacle[:, 0] - obstacle_buffer, obstacle[:, 1] + obstacle_buffer)
-    y_between_limits = is_between_limits(y, obstacle[:, 2] - obstacle_buffer, obstacle[:, 3] + obstacle_buffer)
-    # collision happens when both of them are true together
-    return jax.nn.relu(x_between_limits + y_between_limits - 1)
-
-if __name__ == "__main__":
-    print(jax.grad(smooth_max)(4.0, 5.0))
