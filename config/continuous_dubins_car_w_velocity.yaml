@@ -1,8 +1,7 @@
 env_name: continuous-dubins-car-w-velocity-state-v0
 env_entry_point: env.continuous_dubins_car_w_velocity_state:ContinuousDubinsCar
 max_episode_steps: 200
-n_restarts: 400
-depth: 100
+depth: 100 # can use 50 for Gym
 transition_fn: env.transition_fns:continuous_dubins_car_w_velocity_state
 reward_fn: env.reward_fns:continuous_dubins_car_w_velocity
 discrete: False
@@ -19,7 +18,6 @@ ros_interface: planners.ros_interface:plan_one_step_dubins_car_w_velocity
 baseline_ros_interface: planners.ros_interface:plan_one_step_dubins_car_w_velocity
 fixed_time_pub_mode: False
 
-add_obstacles: True
 obstacles_config_path: ???
 model: learning ## or learning
 
@@ -28,6 +26,7 @@ mppi:
   n_samples: 400
   gamma: 10000
 
+# For some maps, a step_size of 1, and step_size_var of 0.1 might work better.
 disprod:
   step_size: 10
   step_size_var: 1
