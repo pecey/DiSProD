@@ -102,6 +102,21 @@ Using DiSProD on a new environment is straightforward.
 
 - Instructions for experiments with TurtleBot can be found in [ros1-turtlebot/README.md](ros1-turtlebot/README.md)
 
+#### Debugging
+
+As the main loop to run experiments uses multiprocessing, if the inner loop fails, the outer loop still tries to execute and errors out with a dimensionality issue for the reward matrix. The error message looks something like:
+
+```sh
+Traceback (most recent call last):
+  File "run_gym.py", line 171, in <module>
+    main(args)
+  File "run_gym.py", line 122, in main
+    rewards = rewards_matrix[:, 1]
+IndexError: too many indices for array: array is 1-dimensional, but 2 were indexed
+```
+
+This message can be ignored as it is not the true source of error. The actual error would be found above this message in the stacktrace.
+
 ## Bibtex
 If you find this work useful, please cite
 
