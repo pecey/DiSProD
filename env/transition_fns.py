@@ -45,13 +45,24 @@ def continuous_dubins_car(state, actions, env):
     return _dubins_car(env, state, velocity, angular_velocity)
 
 
+def _dubins_car(env, state, velocity,angular_velocity):
+    x, y, theta, noise = state
+    dx_dt = velocity * jnp.cos(theta) * env.time_interval
+    dy_dt = velocity * jnp.sin(theta) * env.time_interval
+    dtheta_dt = (env.angular_velocity_multiplier * angular_velocity + env.alpha * noise) * env.time_interval * DEGREE_TO_RADIAN_MULTIPLIER
+    
+    x_new = jnp.clip(x + dx_dt, env.min_x_position, env.max_x_position)
+    y_new= jnp.clip(y + dy_dt, env.min_y_position, env.max_y_position)
+    theta_new = theta + dtheta_dt
+
+    new_position = jnp.array([x_new, y_new, theta_new])
+
+    return new_position
+
 def continuous_dubins_car_w_velocity_state(state, actions, env):
     delta_velocity, delta_angular_velocity = actions
-    if len(state) == 6:
-        x , y, theta, old_velocity, old_angular_velocity, noise = state
-    else:
-        x , y, theta, old_velocity, old_angular_velocity = state[0] , state[1] , state[2] , state[3] , state[4] 
-        noise = 0
+    x , y, theta, old_velocity, old_angular_velocity, noise = state
+
 
     velocity = jnp.clip(old_velocity + delta_velocity, env.min_velocity, env.max_velocity)
     delta_angular_velocity_ = (env.alpha * noise + delta_angular_velocity) * env.delta_angular_velocity_multiplier * DEGREE_TO_RADIAN_MULTIPLIER
@@ -68,24 +79,6 @@ def continuous_dubins_car_w_velocity_state(state, actions, env):
     return jnp.array([x, y, theta, velocity, angular_velocity])
 
 
-def _dubins_car(env, state, velocity,angular_velocity):
-    if len(state) == 6:
-        x, y, theta , _ , _ , _ = state
-        noise = 0
-    else:
-        x, y, theta, noise = state
-    dx_dt = velocity * jnp.cos(theta) * env.time_interval
-    dy_dt = velocity * jnp.sin(theta) * env.time_interval
-    dtheta_dt = (env.angular_velocity_multiplier * angular_velocity + env.alpha * noise) * env.time_interval * DEGREE_TO_RADIAN_MULTIPLIER
-    
-    x_new = jnp.clip(x + dx_dt, env.min_x_position, env.max_x_position)
-    y_new= jnp.clip(y + dy_dt, env.min_y_position, env.max_y_position)
-    theta_new = theta + dtheta_dt
-
-    new_position = jnp.array([x_new, y_new, theta_new])
-
-    return new_position
-
 ###################################################
 # Cartpole
 ###################################################
@@ -99,11 +92,7 @@ def cartpole(state, actions, env):
 
 
 def continuous_cartpole_hybrid(state, action, env):
-    if len(state) == 6:
-        x, x_dot, theta, theta_dot, left_of_marker, normal_noise = state
-        uniform_noise = 0
-    else:
-        x, x_dot, theta, theta_dot, left_of_marker, normal_noise, uniform_noise = state
+    x, x_dot, theta, theta_dot, left_of_marker, normal_noise, uniform_noise = state
     
     shaky_action = action[0] #if env.ignore_shaky_in_planner else action[0] + 5 * token * noise 
     force = env.force_mag * shaky_action
@@ -138,11 +127,7 @@ def continuous_cartpole(state, action, env):
 
 
 def _cartpole(env, state, force):
-    if len(state) == 4:
-        x, x_dot, theta, theta_dot = state
-        noise = 0
-    else:
-        x, x_dot, theta, theta_dot, noise = state
+    x, x_dot, theta, theta_dot, noise = state
 
     sin_theta = jnp.sin(theta)
     cos_theta = jnp.cos(theta)
@@ -184,11 +169,7 @@ def continuous_mountain_car_high_dim(state, actions, env):
 
 
 def _mountain_car(env, state, force):
-    if len(state) == 2:
-        position, velocity = state
-        noise = 0
-    else:
-        position, velocity, noise = state
+    position, velocity, noise = state
 
     # Add noise
     force += env.alpha * noise
@@ -206,11 +187,7 @@ def _mountain_car(env, state, force):
 ###############################################
 
 def pendulum(state, action, env):
-    if len(state) == 4:
-        theta, cos_theta, sin_theta, thdot = state 
-        noise = 0
-    else:
-        theta, cos_theta, sin_theta, thdot, noise = state 
+    theta, cos_theta, sin_theta, thdot, noise = state 
     g = env.g
     m = env.m
     l = env.l
