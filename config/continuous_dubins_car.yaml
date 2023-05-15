@@ -3,7 +3,6 @@ env_entry_point: env.continuous_dubins_car:ContinuousDubinsCar
 max_episode_steps: 200
 n_restarts: 100
 depth: 100
-lr: 0.25
 transition_fn: env.transition_fns:continuous_dubins_car
 reward_fn: env.reward_fns:continuous_dubins_car
 ros_interface: planners.ros_interface:sogbofa_plan_one_step_dubins_car
@@ -11,7 +10,8 @@ baseline_ros_interface: planners.ros_interface:baseline_plan_one_step_dubins_car
 discrete: False
 noise: False
 render: True
-env_file: env.dubins_env_properties:EnvironmentProperties
+# This file is used for experiments with ROS/Jackal/Heron as we don't need the Gym environment.
+env_file: env.continuous_dubins_env_properties:EnvironmentProperties
 run_mode: production
 vehicle_model: turtlebot
 fixed_time_pub_mode: False

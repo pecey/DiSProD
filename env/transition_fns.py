@@ -161,16 +161,12 @@ def continuous_cartpole_hybrid(state, action, env):
     theta_dot = theta_dot + env.tau * theta_acc
     
     p_left_of_marker = jax.nn.sigmoid(5.0*(env.reward_marker - x)) #is_between_smooth(x, env.x_shaky_threshold_left, env.x_shaky_threshold_right)
-    # left_of_marker = left_of_marker #if env.ignore_bin_var_in_planner else jax.nn.sigmoid(5 * (p_left_of_marker - 0.5 - uniform_noise)) ## Sticky
     left_of_marker = jax.nn.sigmoid(5 * (p_left_of_marker - 0.5 - uniform_noise))
 
     # This is the JAX equivalent of the transition function in the simulator.
     # is_left_of_margin = jnp.where(x < env.unstable_left, jnp.ones_like(x), jnp.zeros_like(x)) 
     # p_left_of_margin = is_left_of_margin
-    # if env.ignore_shaky_in_planner:
-    #     left_of_margin = left_of_margin
-    # else:
-    #     left_of_margin = jnp.where(uniform_noise <= (p_left_of_margin - 0.5), jnp.ones_like(p_left_of_margin), jnp.zeros_like(p_left_of_margin))
+    # left_of_margin = jnp.where(uniform_noise <= (p_left_of_margin - 0.5), jnp.ones_like(p_left_of_margin), jnp.zeros_like(p_left_of_margin))
     
     return jnp.array([x, x_dot, theta, theta_dot, left_of_marker])
 
