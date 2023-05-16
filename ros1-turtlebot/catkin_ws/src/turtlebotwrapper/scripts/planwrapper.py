@@ -1,53 +1,34 @@
 #!/usr/bin/env python3
 
 import argparse
-from logging import shutdown
-
 import rospy
 import numpy as np
 import sys
 import os
 import xml.etree.ElementTree as ET
 from omegaconf import OmegaConf
-import torch as T
 import time
-import jax.numpy as jnp
-from matplotlib import pyplot as plt
-from datetime import date
 import jax
 
-
-
-
-AWESOME_DISPROD_PATH = os.getenv("AWESOME_DISPROD_PATH")
-sys.path.append(AWESOME_DISPROD_PATH)
-sys.path.append(os.path.join(AWESOME_DISPROD_PATH, "ros1-turtlebot"))
-AWESOME_DISPROD_CONF_PATH = os.path.join(AWESOME_DISPROD_PATH, "config")
-AWESOME_DISPROD_MOD_PATH = os.path.join(AWESOME_DISPROD_PATH, "ros1-turtlebot/catkin_ws/sdf_models")
+DISPROD_PATH = os.getenv("DISPROD_PATH")
+sys.path.append(DISPROD_PATH)
+sys.path.append(os.path.join(DISPROD_PATH, "ros1-turtlebot"))
+DISPROD_CONF_PATH = os.path.join(DISPROD_PATH, "config")
+DISPROD_MOD_PATH = os.path.join(DISPROD_PATH, "ros1-turtlebot/catkin_ws/sdf_models")
 from visualization_helpers.marker_array_rviz import PoseArrayRviz
-
 
 from geometry_msgs.msg import Twist, Point, TwistStamped
 from nav_msgs.msg import Odometry
 from math import atan2, asin
-from tracking_pid.msg import states , state
+from tracking_pid.msg import states, state
 
 from visualization_msgs.msg import Marker, MarkerArray
 
-# note: this fails for local import so I moved it to global Python path
-# from .planalg import planalg
 from planners.ros_interface import setup_planner 
 from pathlib import Path
 from utils.common_utils import print_, set_global_seeds, prepare_config, update_config_with_args, setup_output_dirs , load_method
 
-
-
 DEGREE_TO_RADIAN_MULTIPLIER = np.pi / 180
-
-
-
-
-
 
 class LowLevelController():
     def __init__(self) -> None:
@@ -57,7 +38,6 @@ class LowLevelController():
         self.publisher = rospy.Publisher('/' + topic_name, msg_type, queue_size=10)
         self.controller = controller
         
-
     def publish(self, msg):
         print(f"Pushishing msg for {self.controller}")
         self.publisher.publish(msg)
@@ -172,30 +152,24 @@ class TurtleBotWrapper:
         
 
     def render_model(self, vehicle_type, x, y, yaw=0.0):
-
-
         os.system("rosservice call gazebo/delete_model '{model_name: turtlebot3_burger}'")
         os.system(
             'rosrun gazebo_ros spawn_model -urdf -model turtlebot3_burger -x {} -y {} -Y {} -param robot_description'.format(
                 x, y, yaw))
 
-
-
-    def shutdownHook(self):
-        
+    def shutdownHook(self):       
         os.system("rosservice call gazebo/delete_model '{model_name: turtlebot3_burger}'")
         
         for idx in range(self.obstacle_length):
             name = f"model_name : box_target_red_{idx}"
             command = "rosservice call gazebo/delete_model " + "\'{" + name + "}\'"
-
             os.system(command)
 
     def render_in_gazebo(self, idx, pose_x=0, pose_y=0, pose_z=0, size_x=0.5, size_y=0.5, size_z=0.5):
         rospy.loginfo("Rendering object in gazebo")
 
         model = 'box'
-        model_path = os.path.join(AWESOME_DISPROD_MOD_PATH, model + '.sdf')
+        model_path = os.path.join(DISPROD_MOD_PATH, model + '.sdf')
 
         tree = ET.parse('{}'.format(model_path))
         root = tree.getroot()
@@ -208,7 +182,7 @@ class TurtleBotWrapper:
 
         file_name = '{}_pose_{}_{}_size_{}_{}_{}.sdf'.format(model, pose_x, pose_y, size_x, size_y, size_z)
 
-        output_file_path = os.path.join(AWESOME_DISPROD_MOD_PATH, file_name)
+        output_file_path = os.path.join(DISPROD_MOD_PATH, file_name)
         tree.write(output_file_path)
 
         os.system("rosrun gazebo_ros spawn_model -file {} -sdf -model box_target_red_{}".format(output_file_path, idx))
@@ -288,22 +262,16 @@ class TurtleBotWrapper:
             return 0
 
         self.publish_goal_marker()
-
         state = np.array([self.pose['x_pos'], self.pose['y_pos'], self.pose['yaw'], self.last_linear_vel , self.last_angular_vel])[:self.env.nS]
-
-        
         goal = np.array([self.goal_x, self.goal_y])
 
         time1 = rospy.Time().now().to_sec()
 
-        delta_ac, ac, delta_ac_seq, key = self.plan_one_step(self.planner, self.env, state, goal , ac_seq , key)
-        
+        delta_ac, ac, ac_seq, key = self.plan_one_step(self.planner, self.env, state, goal , ac_seq , key)
             
-
-        
         goal = np.array([self.goal_x, self.goal_y])
-
         dist = ((state[0] - goal[0])**2 + (state[1] - goal[1]) **2)**0.5
+        
         print(f"Distance to goal {dist}")
         if dist < 1:
             cmd = generate_command_message([0 , 0])
@@ -317,9 +285,6 @@ class TurtleBotWrapper:
         self.action_generated = True
         self.action_cache = ac
 
-
-
-        
 
         if self.publisher.controller == "self":
             ## action of size 5 * 2
@@ -387,12 +352,6 @@ class TurtleBotWrapper:
         self.pose_array_viz.publish(imag_traj)
     def planner_reset(self):
         self.planner.reset()
-    
-    
-    
-
-
-
 
 def generate_stamped_command_message(cmd,count):
     # for visualization
@@ -401,8 +360,6 @@ def generate_stamped_command_message(cmd,count):
     stamped_cmd.header.seq = count 
     stamped_cmd.header.frame_id = "world"
     return stamped_cmd
-
-
 
 def generate_command_message(action):
     cmd = Twist()
@@ -413,27 +370,16 @@ def generate_command_message(action):
     return cmd
 
 
-
-
-
-
-
-
-def prepare_config(planner, env_name, cfg_path=None):
-    if planner == "naive":
-        return dict()
-        
+def prepare_config(env_name, cfg_path=None):
     planner_default_cfg = OmegaConf.load(f"{cfg_path}/default.yaml")
     planner_env_cfg = OmegaConf.load(f"{cfg_path}/{env_name}.yaml")
     return OmegaConf.merge(planner_default_cfg, planner_env_cfg)
 
 
 def main(args):
-    device = "cuda" if T.cuda.is_available() else "cpu"
-    env_cfg = prepare_config(args.alg, args.env_name, AWESOME_DISPROD_CONF_PATH)
+    env_cfg = prepare_config(args.env_name, DISPROD_CONF_PATH)
     env_cfg['mode'] = 'tbot_evaluation'
-    env_cfg = update_config_with_args(env_cfg, args , base_path=AWESOME_DISPROD_PATH)
-    env_cfg["device"] = device
+    env_cfg = update_config_with_args(env_cfg, args , base_path=DISPROD_PATH)
     
     
     set_global_seeds(env_cfg['seed'])
@@ -450,7 +396,7 @@ def main(args):
 
     depth , restart = env_cfg["depth"], env_cfg["n_restarts"]
 
-    setup_output_dirs(env_cfg, run_name , AWESOME_DISPROD_PATH)
+    setup_output_dirs(env_cfg, run_name , DISPROD_PATH)
 
 
     if args.poseVisualization:

@@ -6,7 +6,7 @@ The environment configuration is defined in `env/assets/dubins.json`.
 
 ## Pre-requisite
 ```shell
-# Download Turtlebot3 Simulation in the src folder.
+# Install the package for Turtlebot3 Simulations.
 sudo apt install ros-noetic-turtlebot3-simulations
 ```
 Add the following exports to `~/.bashrc` file:
@@ -17,6 +17,7 @@ Don't forget to source the updated file.
 
 ## Build the files
 ```shell
+cd $DISPROD_PATH/ros1-turtlebot/catkin_ws
 rm -rf build devel
 catkin_make
 cd devel && source setup.sh
@@ -24,7 +25,8 @@ cd devel && source setup.sh
 
 ## Lowering the simulation time
 > Note: Running DiSProD is a computationally extensive task, therefore we should lower the simulation time to see it working. 
-```
+
+```shell
 roscd turtlebot3_gazebo/worlds/
 vim empty.world
 ```
@@ -37,19 +39,19 @@ And update the world file with the following settings inside the physics tag. Mo
 <real_time_factor>0.2</real_time_factor>
 ```
 
-if time step size is 1ms, throttling at 200 steps/second effectively
+If time step size is 1ms, throttling at 200 steps/second effectively
 throttles simulation down to .2X real-time.
 
 ## Set x_pose, y_pose from config file
 
-If you need to be able to set the x,y coordinate of the turtlebot from the config file, 
+To set the x,y coordinate of the turtlebot from the config file, 
 
 ```shell
 roscd turtlebot3_gazebo/launch
 vim turtlebot3_empty_world.launch
 ```
 
-and remove the line(you may find it in the last few lines) 
+and remove the following line (It should be towards the bottom of the document in the last few lines.) 
 
 ```shell
 <node name="spawn_urdf" pkg="gazebo_ros" type="spawn_model" args="-urdf -model turtlebot3 -x $(arg x_pos) -y $(arg y_pos) -z $(arg z_pos) -param robot_description" />

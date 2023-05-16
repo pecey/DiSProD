@@ -6,9 +6,7 @@ jaxlib==0.3.0
 matplotlib==3.1.2
 omegaconf==2.1.1
 pyvirtualdisplay==3.0
-# rospy==1.15.14
 setuptools==45.2.0
-tf==1.13.2
 numpy==1.22.2
 scipy==1.8.0
 tensorflow_probability==0.16.0
