@@ -71,6 +71,7 @@ class ShootingCEM():
         else:
             raise Exception(f"Unexpected value received for --alg. Got {cfg['alg']}, was expecting cem or mppi")
         
+        self.gen_state_seq_fn = gen_state_seq(self.ns_fn, noise_gen_fn, self.nS, self.plan_horizon, env)
 
     def reset(self, key):
        ac_seq = jnp.tile((self.ac_lb + self.ac_ub)/2, [self.plan_horizon, 1])
@@ -84,8 +85,25 @@ class ShootingCEM():
         init_var = jnp.tile(jnp.square(self.ac_ub - self.ac_lb)/16, [self.plan_horizon, 1])
         _, mean, _, key = self.plan_fn(obs, init_mean, init_var, key)
         ac, ac_seq = mean[0], jnp.concatenate((mean[1:], jnp.zeros((1, self.nA))), axis=0)
-        return ac, ac_seq, key
+        state_seq = self.gen_state_seq_fn(obs, ac_seq, key)
+        return ac, ac_seq, state_seq, key
 
+
+# Function to generate state sequence given action sequence
+def gen_state_seq(dynamics_fn, noise_gen_fn, nS, plan_horizon, env):
+    def _gen_next_state(d, val):
+        obs, ac_seq, noise, tau = val
+        feats = jnp.concatenate((obs, noise[d]), 0)
+        next_obs = dynamics_fn(feats, ac_seq[d], env)
+        tau = tau.at[d + 1].set(next_obs)
+        return next_obs, ac_seq, noise, tau
+    
+    def _gen_state_seq(obs, ac_seq, key):
+        noise = noise_gen_fn(key)
+        tau = jnp.zeros((plan_horizon, nS))
+        init_val=(obs, ac_seq, noise[:, 0, :], tau)
+        _, _, _, tau = jax.lax.fori_loop(0, plan_horizon, _gen_next_state, init_val)
+    return _gen_state_seq
 
 # Function to generate action sequences
 def a_dist(ac_lb, ac_ub, pop_size):
