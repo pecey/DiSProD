@@ -29,9 +29,6 @@ class EnvironmentProperties:
         config = np.random.choice(maps) if env_cfg['map_name'] == "random" else maps[env_cfg['map_name']]
 
         env_cfg["config"] = config
-
-
-        
             
         self.x, self.y = config['x'], config['y']
         self.goal_x, self.goal_y = config['goal_x'], config['goal_y']

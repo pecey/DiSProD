@@ -159,7 +159,8 @@ if __name__ == "__main__":
     # CEM/MPPI
     parser.add_argument('--n_samples', type=int, help='Number of samples to sample in CEM/MPPI')
     # DiSProD specific
-    parser.add_argument('--step_size', type=float, help='Controls the step-size in DiSProD in the planner')
+    parser.add_argument('--step_size', type=float, help='Controls the step-size for action mean updates in DiSProD')
+    parser.add_argument('--step_size_var', type=float, help='Controls the step-size for action variance updates in DiSProD')
     parser.add_argument('--taylor_expansion_mode', type=str, help="Control the use of variance in Taylor's expansion", choices=['complete', 'state_var', 'no_var'])
     parser.add_argument('--n_restarts', type=int, help='Number of restarts to perform in DiSProD')
     # For experiments with continuous-mountain-car-high-dim

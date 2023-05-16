@@ -98,18 +98,6 @@
             {"x": 6.5, "y": 4, "width": 0.5, "height": 2 }
           ]
   },
-  "cave": {"x": 5, "y": 5, "goal_x": 70, "goal_y": 90,
-      "boundary": {"x_min": 0, "x_max":  100, "y_min": 0, "y_max":  100, "boundary_width":  0.2},
-      "obstacles": [
-        {"x": 10, "y": 0, "width": 30, "height": 10 },
-        {"x": 42.5, "y": 10, "width": 15, "height": 16.5 },
-        {"x": 17.5, "y": 20, "width": 15, "height": 17.5 },
-        {"x": 14, "y": 54, "width": 13, "height": 18.5 },
-        {"x": 42.5, "y": 38, "width": 60, "height": 17 },
-        {"x": 40, "y": 65, "width": 25, "height": 12.5 },
-        {"x": 76, "y": 80, "width": 24, "height": 20 }
-      ]
-  },
  "cave-mini": {"x": 0.5, "y": 0.5, "goal_x": 7, "goal_y": 9,
   "boundary": {"x_min": 0, "x_max":  10, "y_min": 0, "y_max":  10, "boundary_width":  0.2},
   "obstacles": [

@@ -117,6 +117,9 @@ def update_config_with_args(env_cfg, args, base_path):
     if args.__contains__("step_size") and getattr(args,"step_size") is not None:
         env_cfg["disprod"]["step_size"] = getattr(args, "step_size")
     
+    if args.__contains__("step_size_var") and getattr(args,"step_size_var") is not None:
+        env_cfg["disprod"]["step_size_var"] = getattr(args, "step_size_var")
+    
     if args.__contains__("n_samples") and getattr(args,"n_samples") is not None:
         if env_cfg["alg"] in ["cem"]:
             env_cfg["cem"]["n_samples"] = getattr(args, "n_samples")

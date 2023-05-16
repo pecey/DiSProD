@@ -174,6 +174,8 @@ def init_ac_dist(n_res, depth, nA, low_ac, high_ac):
         # Rest actions are marginals
         ac_l2 = jax.random.dirichlet(key2, jnp.ones(nA), (n_res, depth-1))
 
+        ac_l1 = ac_l1.at[0, 0, :].set(jnp.round(ac_seq[1]))
+        ac_l2 = ac_l2.at[0, : depth-2, :].set(ac_seq[2:])
         ac = jnp.concatenate([ac_l1, ac_l2], axis=1)
         return ac
     return _init_ac_dist

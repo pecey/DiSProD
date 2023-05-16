@@ -8,6 +8,6 @@ discrete: True
 reward_sparsity: 1
 
 disprod:
-  step_size: 0.001
-  step_size_var: 0.0001
-  n_restarts: 10
+  step_size: 0.1
+  step_size_var: 0.01
+  n_restarts: 200

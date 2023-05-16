@@ -110,7 +110,7 @@ def gen_norm_uni_noise(plan_horizon, pop_size):
     def _gen_norm_uni_noise(key):
         key1, key2 = jax.random.split(key)
         noise_norm = jax.random.normal(key1, [plan_horizon, pop_size, 1])
-        noise_uni = jax.random.uniform(key2, [plan_horizon, pop_size, 1])
+        noise_uni = jax.random.uniform(key2, [plan_horizon, pop_size, 1]) - 0.5
         return jnp.concatenate([noise_norm, noise_uni], axis = 2)
     return _gen_norm_uni_noise
         

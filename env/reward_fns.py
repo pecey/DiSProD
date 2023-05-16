@@ -40,27 +40,6 @@ def continuous_dubins_car_w_velocity(state, action, env):
     return done - 100 * get_number_of_collisions(x, y, env)
 
 
-
-# Leaky reward function for Continuous Dubins Car
-def continuous_dubins_car_w_velocity_wo_obstacles(state, action, env):
-    goal_x, goal_y, goal_boundary = env.goal_x, env.goal_y, env.goal_boundary
-    x, y = state[0] , state[1]
-    distance_from_goal = euclidean_distance((x, y), (goal_x, goal_y))
-    #distance_from_goal = jnp.linalg.norm(jnp.array([x,y])-jnp.array([goal_x, goal_y]))
-    agent_outside_boundary = jnp.tanh(1 * jax.nn.relu(distance_from_goal - goal_boundary))
-    not_done = agent_outside_boundary
-    done = 1 - not_done
-    return done
-
-
-
-def goal_reward(goal, x , y):
-    goal_x, goal_y, goal_boundary = goal
-    distance_from_goal = euclidean_distance((x, y), (goal_x, goal_y))
-    agent_outside_boundary = jnp.tanh(1 * jax.nn.relu(distance_from_goal - goal_boundary))
-    # If agent_outside_boundary = 1, or already_done = 0, then not_done = 1
-    return 1 - agent_outside_boundary
-
 ###################################################
 # Cartpole
 ###################################################
@@ -85,7 +64,6 @@ def cartpole_hybrid(state, action, env):
     part_c = jax.nn.relu(- theta - theta_threshold_radians)
     part_d = jax.nn.relu(theta - theta_threshold_radians)
     done = part_a + part_b + part_c + part_d
-    # reward = 1 * jax.nn.sigmoid(2.0*(env.unstable_left-x)) + 3 * jax.nn.sigmoid(2.0*(x-env.unstable_right))
     # If left_of_marker=1, then reward_multiplier = 1. If left_of_marker=0, then reward_multiplier = 3
     return (1.0-jnp.tanh(1 * done)) * (3.0 - 2.0 * left_of_marker) 
 

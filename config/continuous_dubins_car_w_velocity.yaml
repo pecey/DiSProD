@@ -3,19 +3,17 @@ env_entry_point: env.continuous_dubins_car_w_velocity_state:ContinuousDubinsCar
 max_episode_steps: 200
 n_restarts: 400
 depth: 100
-lr: 1
 transition_fn: env.transition_fns:continuous_dubins_car_w_velocity_state
 reward_fn: env.reward_fns:continuous_dubins_car_w_velocity
 discrete: False
 noise: False
 log_file: None
 render: True
-dynamic_lr: False
 debug: True
 add_obstacles: True
-obstacles_config_path: ???
 plot_imagined_trajectory: True
-env_file: env.dubins_env_properties_w_velocity:EnvironmentProperties
+# This file is used for experiments with ROS/Jackal/Heron as we don't need the Gym environment.
+env_file: env.continuous_dubins_env_properties_w_velocity:EnvironmentProperties
 vehicle_model: turtlebot ## or jackal
 ros_interface: planners.ros_interface:plan_one_step_dubins_car_w_velocity
 baseline_ros_interface: planners.ros_interface:plan_one_step_dubins_car_w_velocity
