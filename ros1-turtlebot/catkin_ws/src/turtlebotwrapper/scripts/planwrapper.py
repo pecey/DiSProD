@@ -49,7 +49,6 @@ class TurtleBotWrapper:
         
         # Subscribers
         rospy.Subscriber(odom_msg, Odometry, self.pose_listener_callback)
-        rospy.Subscriber('/turtlewrapper/GoalLocation', Point, self.goal_listener_callback)
         
         self.track_pub_1 = rospy.Publisher('/track1', Marker, queue_size=1)
         self.skip_waypoints = skip_waypoints
@@ -84,7 +83,6 @@ class TurtleBotWrapper:
             self.timer = rospy.Timer(rospy.Duration(1/self.pub_rate), self.publisher_callback)
         self.pose_received = False
         self.rate = rospy.Rate(self.pub_rate)  # hz ie 0.2 sec
-        # self.timer = self.create_timer(timer_period, self.planner_callback)
         self.goal_x = None
         self.goal_y = None
         
@@ -93,29 +91,14 @@ class TurtleBotWrapper:
 
         self.planner = None
         self.env = None
-        #self.first = True
-        #self.env_config = cfg
-        
 
-    # Listen to the goal setter. Update goal for agent, and publish goal markers
-    def goal_listener_callback(self, msg):
-        rospy.loginfo('Goal Received: ("%f","%f")' % (msg.x, msg.y))
-        self.env.x , self.env.y = self.pose['x_pos'], self.pose['y_pos']
-        self.env.goal_x = msg.x
-        self.env.goal_y = msg.y
-        self.goal_x = msg.x 
-        self.goal_y = msg.y
-        self.is_goal_set = True
-        self.publish_goal_marker()
-
-    # Publish goal marker
+    # Publish the goal marker.
     def publish_goal_marker(self):
-        goal = self.create_marker(self.env.goal_x , self.env.goal_y , c = [1 , 0 , 0])
+        goal = self.create_marker(self.env.goal_x, self.env.goal_y, c=[1, 0, 0])
         self.goal_markers.markers.append(goal)
         self.goal_pub.publish(goal)
 
-
-    # Publish goal marker
+    # Publish the start marker.
     def publish_start_marker(self):
         goal = self.create_marker(self.start_x , self.start_y)
         self.start_markers.markers.append(goal)
@@ -128,7 +111,7 @@ class TurtleBotWrapper:
             self.obstacle_markers.markers.append(obstacle)
         self.obstacle_pub.publish(self.obstacle_markers)
 
-    # Create the goal marker
+    # Create markers
     def create_marker(self, x, y, c=[0, 0, 1]):
         goal = Marker()
         goal.id = 0
@@ -221,12 +204,12 @@ class TurtleBotWrapper:
         self.action = []
         return obstacles
 
+    # Listen to odometry and update the robot's position for the planner.
     def pose_listener_callback(self, msg):
         state = {'x_pos': msg.pose.pose.position.x, 'y_pos': msg.pose.pose.position.y,
                  'z_pos': msg.pose.pose.position.z}
 
         self.pose_received = True
-
         self.current_odom_msg = msg
 
         q0 = msg.pose.pose.orientation.w
@@ -252,6 +235,7 @@ class TurtleBotWrapper:
 
         self.pose = state
 
+    # Call the planner with the current state and publish command/waypoint accordingly.
     def planner_callback(self, step_num, ac_seq, key):
         # Either goal is not set or the current pose of bot is not set
         if not self.pose_received:
@@ -280,12 +264,7 @@ class TurtleBotWrapper:
         self.action_cache = ac
 
         if self.publisher.controller == "self":
-            ## action of size 5 * 2
-            linear_velocity , angular_velocity = ac
-            linear_velocity =  np.clip(linear_velocity, self.env.min_velocity, self.env.max_velocity)
-            angular_velocity = np.clip(angular_velocity , self.env.min_angular_velocity , self.env.max_angular_velocity)
-
-            cmd = generate_command_message([linear_velocity , angular_velocity])
+            cmd = generate_command_message(ac)
             self.publisher.publish(cmd)
         else:
             waypoints = self.gen_waypoints_pid(state_seq[:])
@@ -299,8 +278,7 @@ class TurtleBotWrapper:
         return step_num + 1, ac_seq, key
 
     # Generate waypoints for PID. Use every nth state where n=self.skip_waypoints
-    def gen_waypoints_pid(self, state_seq):
-        
+    def gen_waypoints_pid(self, state_seq):      
         imagined_state_arr = []
         for imagined_state in state_seq[::self.skip_waypoints]:
             msg = state()
@@ -317,8 +295,7 @@ class TurtleBotWrapper:
 
         return full_msg
 
-    def publisher_callback(self, timer):
-        
+    def publisher_callback(self, timer):  
         if not self.action_generated:
             return
         rospy.loginfo("Sending cmd_vel at a fixed rate")
@@ -366,7 +343,6 @@ def prepare_config(env_name, cfg_path=None):
     planner_env_cfg = OmegaConf.load(f"{cfg_path}/{env_name}.yaml")
     return OmegaConf.merge(planner_default_cfg, planner_env_cfg)
 
-
 def main(args):
     cfg = prepare_config(args.env_name, DISPROD_CONF_PATH)
     cfg['mode'] = 'tbot_evaluation'
@@ -384,9 +360,6 @@ def main(args):
                           odom_msg=odom_msg, 
                           skip_waypoints=args.skip_waypoints)
     
-    # Goal is set in env at this point.
-    # Any changes to the goal is reflected in env when the planner_callback calls the plan function.
-
     tw.env = load_method(cfg['env_file'])(cfg) 
     run_name = cfg["run_name"]
     depth , restart = cfg["depth"], cfg["n_restarts"]
