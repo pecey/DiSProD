@@ -64,9 +64,8 @@ def continuous_dubins_car_w_velocity_state(state, actions, env):
     x , y, theta, old_velocity, old_angular_velocity, noise = state
 
 
-
     velocity = jnp.clip(old_velocity + delta_velocity, env.min_velocity, env.max_velocity)
-    delta_angular_velocity_ = (delta_angular_velocity) * env.delta_angular_velocity_multiplier * DEGREE_TO_RADIAN_MULTIPLIER
+    delta_angular_velocity_ = (env.alpha * noise + delta_angular_velocity) * env.delta_angular_velocity_multiplier * DEGREE_TO_RADIAN_MULTIPLIER
     angular_velocity = jnp.clip(old_angular_velocity + delta_angular_velocity_ ,env.min_angular_velocity , env.max_angular_velocity)
 
     dx_dt = velocity * jnp.cos(theta) * env.time_interval
@@ -201,5 +200,4 @@ def pendulum(state, action, env):
     newth = theta + (newthdot + env.alpha * jnp.exp(noise)) * dt
 
     return jnp.array([newth, jnp.cos(newth), jnp.sin(newth), newthdot])
-
 
