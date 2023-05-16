@@ -15,12 +15,25 @@ export DISPROD_PATH=<path-to-DiSProD>
 ```
 Don't forget to source the updated file.
 
+In order to use PID as the low level controller, clone [this repository](https://github.com/itsmeashutosh43/pid-heron) inside `$DISPROD_PATH/ros1-turtlebot/catkin_ws/src`.
+
+```shell
+cd $DISPROD_PATH/ros1-turtlebot/catkin_ws/src
+git clone https://github.com/itsmeashutosh43/pid-heron
+```
+
 ## Build the files
 ```shell
 cd $DISPROD_PATH/ros1-turtlebot/catkin_ws
 rm -rf build devel
 catkin_make
 cd devel && source setup.sh
+```
+
+In case of using the PID controller, set these in accordance to the README of the PID-repository.
+```shell
+export ROS_MASTER_URI=http://localhost:11311
+export ROS_HOSTNAME=localhost
 ```
 
 ## Lowering the simulation time
