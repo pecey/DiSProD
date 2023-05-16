@@ -18,15 +18,16 @@ import time
 import jax.numpy as jnp
 from matplotlib import pyplot as plt
 from datetime import date
+import jax
 
 
 
 
 AWESOME_SOGBOFA_PATH = os.getenv("AWESOME_SOGBOFA_PATH")
 sys.path.append(AWESOME_SOGBOFA_PATH)
-sys.path.append(os.path.join(AWESOME_SOGBOFA_PATH, "ros1-sogbofa-turtlebot"))
+sys.path.append(os.path.join(AWESOME_SOGBOFA_PATH, "ros1-turtlebot"))
 AWESOME_SOGBOFA_CONF_PATH = os.path.join(AWESOME_SOGBOFA_PATH, "config")
-AWESOME_SOGBOFA_MOD_PATH = os.path.join(AWESOME_SOGBOFA_PATH, "ros1-sogbofa-turtlebot/catkin_ws/sdf_models")
+AWESOME_SOGBOFA_MOD_PATH = os.path.join(AWESOME_SOGBOFA_PATH, "ros1-turtlebot/catkin_ws/sdf_models")
 from visualization_helpers.marker_array_rviz import PoseArrayRviz
 
 
@@ -40,7 +41,7 @@ from visualization_msgs.msg import Marker, MarkerArray
 # note: this fails for local import so I moved it to global Python path
 # from .planalg import planalg
 from utils.common_utils import print_, set_global_seeds, prepare_config , load_method , load_config_if_exists
-from planners.ros_interface import setup_jax_model, setup_planner , setup_mbrl_agent , setup_torch_model
+from planners.ros_interface import setup_planner 
 from pathlib import Path
 
 
@@ -406,7 +407,7 @@ class TurtleBotWrapper:
 
         self.pose = state
 
-    def planner_callback(self, step_num):
+    def planner_callback(self, step_num , ac_seq, key):
         # Either goal is not set or the current pose of bot is not set
         if not self.flag:
             rospy.loginfo('Either goal not set or current pose is missing, nothing to do')
@@ -420,8 +421,9 @@ class TurtleBotWrapper:
         goal = np.array([self.goal_x, self.goal_y])
 
         time1 = rospy.Time().now().to_sec()
+
+        delta_ac, ac, delta_ac_seq, key = self.plan_one_step(self.planner, self.env, state, goal , ac_seq , key)
         
-        _ , action , imagined_trajectory = self.plan_one_step(self.planner, self.env, state, goal)
             
 
         # if self.pose_array_viz and imagined_trajectory!= None:
@@ -440,10 +442,10 @@ class TurtleBotWrapper:
 
             rospy.loginfo("Reached goal, nothing more to do")
 
-            return step_num
+            return step_num , ac_seq , key
 
         self.action_generated = True
-        self.action_cache = action
+        self.action_cache = ac
 
         #return step_num + 1
 
@@ -452,14 +454,14 @@ class TurtleBotWrapper:
 
         if self.publisher.controller == "self":
             ## action of size 5 * 2
-            linear_velocity , angular_velocity = action
+            linear_velocity , angular_velocity = ac
             linear_velocity =  np.clip(linear_velocity, self.env.min_velocity, self.env.max_velocity)
             angular_velocity = np.clip(angular_velocity , self.env.min_angular_velocity , self.env.max_angular_velocity)
 
             cmd = generate_command_message([linear_velocity , angular_velocity])
             self.publisher.publish(cmd)
         else:
-            waypoints = self.send_to_pid(imagined_trajectory[:])
+            waypoints = self.send_to_pid(ac_seq[:])
             self.publisher.publish(waypoints)
 
 
@@ -470,14 +472,14 @@ class TurtleBotWrapper:
         
         
 
-        self.last_linear_vel , self.last_angular_vel = action[0] , action[1]
+        self.last_linear_vel , self.last_angular_vel = ac[0] , ac[1]
         
         time2 = rospy.Time().now().to_sec()
 
         print(f"Action generated after time {time2 - time1}")
         
         
-        return step_num + 1
+        return step_num + 1 , ac_seq, key
 
     def send_to_pid(self , imagined_states):
         
@@ -630,13 +632,9 @@ def prepare_config(planner, env_name, cfg_path=None):
     if planner == "naive":
         return dict()
         
-    planner_default_cfg = OmegaConf.load(f"{cfg_path}/planning/default.yaml")
-    default_cfg = OmegaConf.load(f"{cfg_path}/default.yaml")
-    sogbofa_default_cfg = OmegaConf.load(f"{cfg_path}/sogbofa_default.yaml")
-    planner_env_cfg = OmegaConf.load(f"{cfg_path}/planning/{env_name}.yaml")
-    learning_env_cfg = OmegaConf.load(f"{cfg_path}/learning/{env_name}.yaml")
-    learning_default_cfg = OmegaConf.load(f"{cfg_path}/learning/default.yaml")
-    return OmegaConf.merge(default_cfg , planner_default_cfg,  sogbofa_default_cfg, planner_env_cfg, learning_default_cfg , learning_env_cfg,OmegaConf.load(f"{cfg_path}/{env_name}.yaml"))
+    planner_default_cfg = OmegaConf.load(f"{cfg_path}/default.yaml")
+    planner_env_cfg = OmegaConf.load(f"{cfg_path}/{env_name}.yaml")
+    return OmegaConf.merge(planner_default_cfg, planner_env_cfg)
 
 
 def main(args):
@@ -680,23 +678,9 @@ def main(args):
     #### model can be either clip_dubins_car or dubins_car or learning
 
     env_cfg['nn_model'] = False
-    tw.planner = setup_planner(tw.env , env_cfg , args.seed)
+    tw.planner = setup_planner(tw.env , env_cfg)
      
-    if env_cfg["nn_model"]:
-        print("Learning module started")
-        if env_cfg['nn_model'] and env_cfg["model"] == "learning":
-            if not os.path.exists(env_cfg['evaluation']['dynamics_model_path']):
-                print(f"File {env_cfg['evaluation']['dynamics_model_path']} does not exist ")
-                import sys 
-                sys.exit()
-        jax_model = setup_jax_model(tw.env, env_cfg)
-        torch_model = setup_torch_model(tw.env, env_cfg)
-        agent = setup_mbrl_agent(tw.env, env_cfg, jax_model, torch_model, tw.planner)
-        agent.update_model_in_planner()
-        dynamics_path = env_cfg["evaluation"]["dynamics_model_path"]
-        tw.jax_model = agent.jax_model
-        agent.sync_jax_model_with_torch(T.load(dynamics_path, map_location=device))
-
+    
 
     
     
@@ -713,9 +697,11 @@ def main(args):
 
     rospy.on_shutdown(tw.shutdownHook)
     tic = time.perf_counter()
-    tw.planner.reset()
+    key = jax.random.PRNGKey(args.seed)
 
-    input("Enter to start")
+    ac_seq, key = tw.planner.reset(key)
+
+    input("Enter to start ")
 
     tw.publish_goal_marker()
     tw.publish_start_marker()
@@ -723,7 +709,7 @@ def main(args):
         
     while not rospy.is_shutdown():
         
-        curr_step_num = tw.planner_callback(step_num)
+        curr_step_num , ac_seq, key = tw.planner_callback(step_num , ac_seq, key)
         if step_num == curr_step_num:
             print_(f"{env_cfg['map_name']}  , {step_num}" , env_cfg['log_file'])
             rospy.signal_shutdown("Environment is solved") 
