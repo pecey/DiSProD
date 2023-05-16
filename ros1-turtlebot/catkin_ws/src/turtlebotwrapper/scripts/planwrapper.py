@@ -264,7 +264,7 @@ class TurtleBotWrapper:
 
         time1 = rospy.Time().now().to_sec()
 
-        _, ac, ac_seq, key = self.plan_one_step(self.planner, self.env, state, ac_seq , key)
+        _, ac, ac_seq, state_seq, key = self.plan_one_step(self.planner, self.env, state, ac_seq , key)
             
         dist = ((state[0] - goal[0])**2 + (state[1] - goal[1])**2)**0.5
         
@@ -274,7 +274,7 @@ class TurtleBotWrapper:
             #self.publisher.publish(cmd)
             rospy.sleep(0.2)
             rospy.loginfo("Reached goal, nothing more to do")
-            return step_num , ac_seq , key
+            return step_num, ac_seq, key
 
         self.action_generated = True
         self.action_cache = ac
@@ -288,7 +288,7 @@ class TurtleBotWrapper:
             cmd = generate_command_message([linear_velocity , angular_velocity])
             self.publisher.publish(cmd)
         else:
-            waypoints = self.send_to_pid(ac_seq[:])
+            waypoints = self.gen_waypoints_pid(state_seq[:])
             self.publisher.publish(waypoints)
 
         self.last_linear_vel , self.last_angular_vel = ac[0] , ac[1]
@@ -298,10 +298,11 @@ class TurtleBotWrapper:
         
         return step_num + 1, ac_seq, key
 
-    def send_to_pid(self, waypoints):
+    # Generate waypoints for PID. Use every nth state where n=self.skip_waypoints
+    def gen_waypoints_pid(self, state_seq):
         
         imagined_state_arr = []
-        for imagined_state in waypoints[::self.skip_waypoints]:
+        for imagined_state in state_seq[::self.skip_waypoints]:
             msg = state()
             msg.x = imagined_state[0]
             msg.y = imagined_state[1]

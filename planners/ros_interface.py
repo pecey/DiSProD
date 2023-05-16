@@ -21,14 +21,14 @@ def plan_one_step_dubins_car_w_velocity(agent, env, obs, delta_ac_seq, key):
     x, y, theta, old_velocity, old_angular_velocity = obs
     
     obs = np.array([round(x, 2), round(y, 2), round(theta, 2), old_velocity, old_angular_velocity])
-    delta_ac, delta_ac_seq, key = agent.choose_action(obs, delta_ac_seq, key)
+    delta_ac, delta_ac_seq, state_seq, key = agent.choose_action(obs, delta_ac_seq, key)
     
     delta_linear_velocity, delta_angular_velocity = delta_ac
     linear_velocity =  np.clip(old_velocity + delta_linear_velocity, env.min_velocity, env.max_velocity)
     angular_velocity = np.clip(old_angular_velocity + delta_angular_velocity * env.delta_angular_velocity_multiplier * DEGREE_TO_RADIAN_MULTIPLIER, env.min_angular_velocity, env.max_angular_velocity)
 
     ac = np.array([linear_velocity, angular_velocity])
-    return delta_ac, ac, delta_ac_seq, key
+    return delta_ac, ac, delta_ac_seq, state_seq, key
 
 
 
