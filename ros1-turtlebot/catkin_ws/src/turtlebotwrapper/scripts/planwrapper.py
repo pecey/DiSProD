@@ -40,86 +40,17 @@ from visualization_msgs.msg import Marker, MarkerArray
 
 # note: this fails for local import so I moved it to global Python path
 # from .planalg import planalg
-from utils.common_utils import print_, set_global_seeds, prepare_config , load_method , load_config_if_exists
 from planners.ros_interface import setup_planner 
 from pathlib import Path
+from utils.common_utils import print_, set_global_seeds, prepare_config, update_config_with_args, setup_output_dirs , load_method
+
 
 
 DEGREE_TO_RADIAN_MULTIPLIER = np.pi / 180
-DEFAULT_CONFIG = {"boundary": [
-    {"x_min": 0, "x_max": 10, "y_min": 0, "y_max": 10, "boundary_width": 0.5}
-],
-    "config": [
-        {
-            "x": 5, "y": 5,
-            "goal_x": 3, "goal_y": 4,
-            "obstacles": [{"x": 2, "y": 4, "width": 1, "height": 0.5},
-                          {"x": 4, "y": 4, "width": 1, "height": 0.5},
-                          {"x": 6, "y": 4, "width": 1, "height": 0.5}]
-        }]
-}
 
 
-def setup_output_dirs(cfg, run_name):
-
-    base_dir = f"{AWESOME_SOGBOFA_PATH}/results/{cfg['env_name']}/evaluation/{run_name}"
-
-    print(base_dir)
-    Path(base_dir).mkdir(parents=True, exist_ok=True)
-    cfg["results_dir"] = base_dir
-
-    model_dir = f"{base_dir}/model"
-    Path(model_dir).mkdir(parents=True, exist_ok=True)
-    cfg["model_dir"] = model_dir
-
-    data_dir = f"{base_dir}/data"
-    Path(data_dir).mkdir(parents=True, exist_ok=True)
-    cfg["data_dir"] = data_dir
-
-    log_dir = f"{base_dir}/logs"
-    Path(log_dir).mkdir(parents=True, exist_ok=True)
-    cfg["log_dir"] = log_dir
-    cfg["log_file"] = f"{log_dir}/output.log"
-
-    graph_dir = f"{base_dir}/graphs"
-    Path(graph_dir).mkdir(parents=True, exist_ok=True)
-    cfg["graph_dir"] = graph_dir
-    print(f"Output is available in: {base_dir}")
-    return base_dir
 
 
-def update_config_with_args(cfg, args):
-    keys_to_update = ["seed", "log_file", "render", "depth", "run_name"]
-    for key in keys_to_update:
-        if args.__contains__(key) and getattr(args,key) is not None:
-            if key in ["render", "compute_baseline"]:
-                cfg[key] = getattr(args, key).lower() == "true"
-            else:
-                cfg[key] = getattr(args, key)
-
-    # Overwrite dynamics model path if value is set.
-    if args.__contains__("dynamics_model_path") and getattr(args, "dynamics_model_path"):
-        cfg["dynamics_model_path"] = args.dynamics_model_path
-
-    # If run_name is set, the update in config. Else set default value to {running_mode}_{current_time}
-    if args.__contains__("run_name") and getattr(args, "run_name"):
-        cfg["run_name"] = args.run_name
-    else:
-        from datetime import date
-
-        today = date.today()
-        cfg["run_name"] = f"{today.strftime('%y-%m-%d')}_{cfg['mode']}_{int(time.time())}"
-
-    # Update config for dubins car
-    if "dubins" in cfg["env_name"]:
-        if getattr(args, "obstacles_config_file").lower() == "none":
-            cfg["obstacles_config_path"] = None
-        else:
-            cfg["obstacles_config_path"] = f"{AWESOME_SOGBOFA_PATH}/env/assets/{args.obstacles_config_file}.json"
-            cfg["map_name"] = args.map_name
-
-    cfg['nn_model'] = False
-    return cfg
 
 
 class LowLevelController():
@@ -246,66 +177,13 @@ class TurtleBotWrapper:
 
     def render_model(self, vehicle_type, x, y, yaw=0.0):
 
-        #
 
-        if vehicle_type == "turtlebot":
-            os.system("rosservice call gazebo/delete_model '{model_name: turtlebot3_burger}'")
-            os.system(
-                'rosrun gazebo_ros spawn_model -urdf -model turtlebot3_burger -x {} -y {} -Y {} -param robot_description'.format(
-                    x, y, yaw))
-
-        elif vehicle_type == "jackal":
-            os.system(
-                'rosrun gazebo_ros spawn_model -urdf -model jackal -x {} -y {} -Y {} -param robot_description2'.format(
-                    x, y, yaw))
-
-        elif vehicle_type == "uuv":
-            return
-            
+        os.system("rosservice call gazebo/delete_model '{model_name: turtlebot3_burger}'")
+        os.system(
+            'rosrun gazebo_ros spawn_model -urdf -model turtlebot3_burger -x {} -y {} -Y {} -param robot_description'.format(
+                x, y, yaw))
 
 
-        else:
-            print(f"Vehicle model {self.vehicle_model} not implemented")
-            raise NotImplementedError
-
-    def plot_actual_vs_predicted_states(self, actual_states, predicted_states, predicted_variance, filename):
-        nS = actual_states.shape[1]
-        n_timesteps = len(actual_states)
-        height = 5 * nS if nS > 2 else 12
-        width = n_timesteps // 25 if n_timesteps > 200 else 8
-        fig, axs = plt.subplots(nS, figsize=(width, height))
-        timesteps = list(range(n_timesteps))
-        for i in range(nS):
-            axs[i].plot(timesteps, actual_states[:, i], 'o-', label="Actual")
-            axs[i].plot(timesteps, predicted_states[:, i], 'b-', label="Predicted")
-            axs[i].fill_between(timesteps, predicted_states[:, i] - predicted_variance[:, i],
-                                predicted_states[:, i] + predicted_variance[:, i], alpha=0.2, color="blue")
-            axs[i].set_title(f"State {i}")
-            axs[i].legend()
-            axs[i].grid()
-        plt.tight_layout()
-        path = f"{self.env_config['graph_dir']}/{filename}_model_accuracy.svg"
-        plt.savefig(path, format='svg')
-        plt.close()
-
-
-    def plot_actual_vs_predicted_states_full(self, actual_states, predicted_states, filename):
-        nS = actual_states.shape[1]
-        n_timesteps = len(actual_states)
-        height = 5 * nS if nS > 2 else 12
-        width = n_timesteps // 25 if n_timesteps > 200 else 8
-        fig, axs = plt.subplots(nS, figsize=(width, height))
-        timesteps = list(range(n_timesteps))
-        for i in range(nS):
-            axs[i].plot(timesteps, actual_states[:, i], 'o-', label="Actual")
-            axs[i].plot(timesteps, predicted_states[:, i], 'b-', label="Predicted")
-            axs[i].set_title(f"State {i}")
-            axs[i].legend()
-            axs[i].grid()
-        plt.tight_layout()
-        path = f"{self.env_config['graph_dir']}/{filename}_model_accuracy.svg"
-        plt.savefig(path, format='svg')
-        plt.close()
 
     def shutdownHook(self):
         
@@ -426,10 +304,6 @@ class TurtleBotWrapper:
         
             
 
-        # if self.pose_array_viz and imagined_trajectory!= None:
-        #     rospy.loginfo("Sending pose visualization")
-        #     self.pose_array_viz.publish(imagined_trajectory)
-
         
         goal = np.array([self.goal_x, self.goal_y])
 
@@ -447,7 +321,6 @@ class TurtleBotWrapper:
         self.action_generated = True
         self.action_cache = ac
 
-        #return step_num + 1
 
 
         
@@ -463,14 +336,6 @@ class TurtleBotWrapper:
         else:
             waypoints = self.send_to_pid(ac_seq[:])
             self.publisher.publish(waypoints)
-
-
-
-
-
-
-        
-        
 
         self.last_linear_vel , self.last_angular_vel = ac[0] , ac[1]
         
@@ -500,8 +365,6 @@ class TurtleBotWrapper:
         return full_msg
 
     def publisher_callback(self, timer):
-
-        print("Action generated ? " , self.action_generated)
         
         if not self.action_generated:
             return
@@ -513,8 +376,6 @@ class TurtleBotWrapper:
         cmd = generate_command_message([linear_velocity , angular_velocity])
         self.publisher.publish(cmd)
 
-    def action_sender(self , action):
-        cmd = generate_command_message(action)
 
     def state_reader(self):
         return [self.pose['x_pos'], self.pose['y_pos'], self.pose['yaw'] , self.pose['x_vel'] , self.pose['ang_vel']]
@@ -534,29 +395,6 @@ class TurtleBotWrapper:
     
     
 
-def create_track_marker(h , k , alpha , scale_x , scale_y , pub , c):
-    r , g , b , a = c
-    
-    q_new = tf.transformations.quaternion_from_euler(0, 0, alpha)  
-    
-    goal = Marker()
-    goal.id = 0
-    goal.type = Marker.CYLINDER
-    goal.header.frame_id = "odom"
-    goal.action = Marker.ADD
-    goal.pose.orientation.x = q_new[0]
-    goal.pose.orientation.y= q_new[1]
-    goal.pose.orientation.z = q_new[2]
-    goal.pose.orientation.w = q_new[3]
-    goal.scale.x, goal.scale.y, goal.scale.z = scale_x * 2, scale_y * 2, 0.0
-    goal.color.r = r 
-    goal.color.g = g
-    goal.color.b = b
-    goal.color.a = a
-    goal.pose.position.x = h 
-    goal.pose.position.y = k
-    goal.pose.position.z = 0.1
-    pub.publish(goal)
 
 
 
@@ -566,9 +404,6 @@ def generate_stamped_command_message(cmd,count):
     stamped_cmd.twist = cmd
     stamped_cmd.header.seq = count 
     stamped_cmd.header.frame_id = "world"
-
-
-    
     return stamped_cmd
 
 
@@ -582,48 +417,8 @@ def generate_command_message(action):
     return cmd
 
 
-# Read configuration from file
-def get_configuration(config_path, config_num):
-    if config_path is not None:
-        with open(config_path, 'r') as f:
-            config_data = f.read()
-        config_json = json.loads(config_data)
-        configs = config_json['config']
-        selected_config = np.random.choice(configs) if config_num == -1 else configs[config_num]
-        boundary = np.random.choice(config_json['boundary'])
-        return selected_config, boundary
-    return None
 
 
-def update_config_with_args(cfg, args):
-    keys_to_update = ["seed", "log_file", "render", "depth", "run_name", "alg" , "nn_model"]
-    for key in keys_to_update:
-        if args.__contains__(key) and getattr(args,key) is not None:
-            if key in ["render", "compute_baseline"]:
-                cfg[key] = getattr(args, key).lower() == "true"
-            else:
-                cfg[key] = getattr(args, key)
-
-    # Overwrite dynamics model path if value is set.
-    if args.__contains__("dynamics_model_path") and getattr(args, "dynamics_model_path"):
-        cfg["dynamics_model_path"] = args.dynamics_model_path
-
-    # If run_name is set, the update in config. Else set default value to {running_mode}_{current_time}
-    if args.__contains__("run_name") and getattr(args, "run_name"):
-        cfg["run_name"] = args.run_name
-    else:
-        today = date.today()
-        cfg["run_name"] = f"{today.strftime('%y-%m-%d')}_{cfg['mode']}_{int(time.time())}"
-
-    # Update config for dubins car
-    if "dubins" in cfg["env_name"]:
-        if getattr(args, "obstacles_config_file").lower() == "none":
-            cfg["obstacles_config_path"] = None
-        else:
-            cfg["obstacles_config_path"] = f"{AWESOME_SOGBOFA_PATH}/env/assets/{args.obstacles_config_file}.json"
-            print("Map name is " , args.map_name)
-            cfg["map_name"] = args.map_name
-    return cfg
 
 
 
@@ -643,7 +438,6 @@ def main(args):
     env_cfg['mode'] = 'tbot_evaluation'
     env_cfg = update_config_with_args(env_cfg, args)
     env_cfg["device"] = device
-    env_cfg = update_config_with_args(env_cfg , args)
     
     
     set_global_seeds(env_cfg['seed'])
@@ -670,29 +464,33 @@ def main(args):
 
        
     
-    if args.alg == 'sogbofa':
-        tw.plan_one_step = load_method(env_cfg['ros_interface'])
-    else:
-        tw.plan_one_step = load_method(env_cfg['baseline_ros_interface'])
-    # model is either clip_dubins_car , learning or dubins_car
-    #### model can be either clip_dubins_car or dubins_car or learning
-
+    tw.plan_one_step = load_method(env_cfg['ros_interface'])
+    
+    # Set nn_model flag to False in env_cfg
     env_cfg['nn_model'] = False
-    tw.planner = setup_planner(tw.env , env_cfg)
-     
-    
 
-    
-    
-    tw.render_model(args.vehicle_type,env_cfg["config"]["x"], env_cfg["config"]["y"])
+    # Set up the planner using the environment and env_cfg
+    tw.planner = setup_planner(tw.env, env_cfg)
+
+    # Render the model with the specified vehicle type and coordinates
+    tw.render_model(args.vehicle_type, env_cfg["config"]["x"], env_cfg["config"]["y"])
+
+    # Treat the boundaries of the environment as obstacles
     tw.env.boundaries_as_obstacle()
+
+    # Set the goal coordinates in the planner
     tw.goal_x = env_cfg["config"]["goal_x"]
     tw.goal_y = env_cfg["config"]["goal_y"]
-    tw.start_x , tw.start_y = env_cfg['config']["x"] , env_cfg['config']['y'] 
+
+    # Set the start coordinates in the planner
+    tw.start_x = env_cfg['config']["x"]
+    tw.start_y = env_cfg['config']['y']
+
+    # Publish markers for the goal position, start position, and obstacles
     tw.publish_goal_marker()
     tw.publish_start_marker()
     tw.publish_obstacle_markers(mode=1)
-    
+
     step_num = 0
 
     rospy.on_shutdown(tw.shutdownHook)
@@ -701,26 +499,30 @@ def main(args):
 
     ac_seq, key = tw.planner.reset(key)
 
-    input("Enter to start ")
 
     tw.publish_goal_marker()
     tw.publish_start_marker()
     tw.publish_obstacle_markers(mode=1)
         
     while not rospy.is_shutdown():
-        
-        curr_step_num , ac_seq, key = tw.planner_callback(step_num , ac_seq, key)
+        curr_step_num, ac_seq, key = tw.planner_callback(step_num, ac_seq, key)
+    
+        # Check if the current step number has changed
         if step_num == curr_step_num:
-            print_(f"{env_cfg['map_name']}  , {step_num}" , env_cfg['log_file'])
-            rospy.signal_shutdown("Environment is solved") 
+            print_(f"{env_cfg['map_name']}  , {step_num}", env_cfg['log_file'])
+            rospy.signal_shutdown("Environment is solved")
 
+        # Check if the step number has exceeded the timeout limit
         if step_num > 400:
             rospy.signal_shutdown("Environment Timeout")
-            print_(f"{env_cfg['map_name']}  , 400" , env_cfg['log_file'])
+            print_(f"{env_cfg['map_name']}  , 400", env_cfg['log_file'])
             raise TimeoutError
+        
         step_num = curr_step_num
-        rospy.sleep(1/100)
     
+        # Sleep for a fraction of a second (to control the loop frequency)
+        rospy.sleep(1/100)
+
         
 
 if __name__ == '__main__':
