@@ -1,5 +1,8 @@
  ## Setup
  
+- We assume that ROS Noetic Desktop-Full (`ros-noetic-desktop-full`) is already installed on the system. 
+- We use the package `tf` in [`visualization_helpers`](../visualization_helpers/) which is installed as a part of `ros-noetic-desktop-full`.
+
 Reference : [Turtlebot3 Tutorial](https://emanual.robotis.com/docs/en/platform/turtlebot3/simulation/)
 
 #### Pre-requisite
@@ -124,3 +127,4 @@ All the map configurations are defined in [env/assets/dubins.json](../env/assets
 ## Using DiSProD-NV mode
 
 To run the experiments using DiSProD-NV, set `taylor_expansion_mode = no_var` in `config/continuous_dubins_car.yaml`
+
