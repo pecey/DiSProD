@@ -6,7 +6,6 @@ depth: 100
 transition_fn: env.transition_fns:continuous_dubins_car
 reward_fn: env.reward_fns:continuous_dubins_car
 ros_interface: planners.ros_interface:sogbofa_plan_one_step_dubins_car
-baseline_ros_interface: planners.ros_interface:baseline_plan_one_step_dubins_car
 discrete: False
 noise: False
 render: True

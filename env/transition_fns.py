@@ -201,4 +201,3 @@ def pendulum(state, action, env):
 
     return jnp.array([newth, jnp.cos(newth), jnp.sin(newth), newthdot])
 
-

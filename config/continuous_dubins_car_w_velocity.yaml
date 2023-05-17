@@ -10,17 +10,11 @@ log_file: None
 render: True
 debug: True
 add_obstacles: True
-plot_imagined_trajectory: True
 # This file is used for experiments with ROS/Jackal/Heron as we don't need the Gym environment.
 env_file: env.continuous_dubins_env_properties_w_velocity:EnvironmentProperties
 vehicle_model: turtlebot ## or jackal
 ros_interface: planners.ros_interface:plan_one_step_dubins_car_w_velocity
-baseline_ros_interface: planners.ros_interface:plan_one_step_dubins_car_w_velocity
 fixed_time_pub_mode: False
-
-obstacles_config_path: ???
-model: learning ## or learning
-
 
 mppi:
   n_samples: 400
