@@ -5,10 +5,7 @@ depth: 100 # can use 50 for Gym
 transition_fn: env.transition_fns:continuous_dubins_car
 reward_fn: env.reward_fns:continuous_dubins_car
 discrete: False
-noise: False
-log_file: None
 render: True
-debug: True
 add_obstacles: True
 # This file is used for experiments with ROS/Jackal/Heron as we don't need the Gym environment.
 env_file: env.continuous_dubins_env_properties:EnvironmentProperties
@@ -31,4 +28,4 @@ disprod:
   reward_fn_using_taylor: True
   max_grad_steps: 10
   # Modes: complete, no_var
-  taylor_expansion_mode: no_var
+  taylor_expansion_mode: complete
