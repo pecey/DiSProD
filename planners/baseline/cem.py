@@ -1,9 +1,8 @@
 from tensorflow_probability.substrates import jax as tfp
 import jax
 import jax.numpy as jnp
-import numpy as np
 from functools import partial
-from utils.common_utils import print_, load_method
+from utils.common_utils import load_method
 
 
 tfd = tfp.distributions
@@ -81,6 +80,7 @@ class ShootingCEM():
     @partial(jax.jit, static_argnums=(0,))
     def choose_action(self, obs, ac_seq, key):        
         # Shape: (plan_horizon, nA)
+        obs = obs.astype(jnp.float32)
         init_mean = ac_seq
         init_var = jnp.tile(jnp.square(self.ac_ub - self.ac_lb)/16, [self.plan_horizon, 1])
         _, mean, _, key = self.plan_fn(obs, init_mean, init_var, key)
@@ -95,7 +95,7 @@ def gen_state_seq(dynamics_fn, noise_gen_fn, nS, plan_horizon, env):
         obs, ac_seq, noise, tau = val
         feats = jnp.concatenate((obs, noise[d]), 0)
         next_obs = dynamics_fn(feats, ac_seq[d], env)
-        tau = tau.at[d + 1].set(next_obs)
+        tau = tau.at[d].set(next_obs)
         return next_obs, ac_seq, noise, tau
     
     def _gen_state_seq(obs, ac_seq, key):
@@ -103,6 +103,7 @@ def gen_state_seq(dynamics_fn, noise_gen_fn, nS, plan_horizon, env):
         tau = jnp.zeros((plan_horizon, nS))
         init_val=(obs, ac_seq, noise[:, 0, :], tau)
         _, _, _, tau = jax.lax.fori_loop(0, plan_horizon, _gen_next_state, init_val)
+        return tau
     return _gen_state_seq
 
 # Function to generate action sequences

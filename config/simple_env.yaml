@@ -6,7 +6,8 @@ transition_fn: env.transition_fns:simple_env
 reward_fn: env.reward_fns:simple_env
 discrete: False
 render: True
-plot_imagined_trajectory: True
+# Set this to true to plot the hallucinated states that the planner thinks it will visit.
+plot_imagined_trajectory: False
 convergance_threshold: 0.05
 reward_sparsity: 1
 

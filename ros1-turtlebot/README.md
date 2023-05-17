@@ -1,19 +1,20 @@
-## Reference : [Turtlebot3 Tutorial](https://emanual.robotis.com/docs/en/platform/turtlebot3/simulation/)
+ ## Setup
+ 
+- We assume that ROS Noetic Desktop-Full (`ros-noetic-desktop-full`) is already installed on the system. 
+- We use the package `tf` in [`visualization_helpers`](../visualization_helpers/) which is installed as a part of `ros-noetic-desktop-full`.
 
-## Environment configuration
+Reference : [Turtlebot3 Tutorial](https://emanual.robotis.com/docs/en/platform/turtlebot3/simulation/)
 
-The environment configuration is defined in `env/assets/dubins.json`. 
-
-## Pre-requisite
+#### Pre-requisite
 ```shell
 # Install the package for Turtlebot3 Simulations.
 sudo apt install ros-noetic-turtlebot3-simulations
 ```
-Add the following exports to `~/.bashrc` file:
+If `DISPROD_PATH` is not set in `~/.bashrc`, then add the following:
 ```shell
 export DISPROD_PATH=<path-to-DiSProD>
 ```
-Don't forget to source the updated file.
+and then `source ~/.bashrc`.
 
 In order to use PID as the low level controller, clone [this repository](https://github.com/itsmeashutosh43/pid-heron) inside `$DISPROD_PATH/ros1-turtlebot/catkin_ws/src`.
 
@@ -22,7 +23,7 @@ cd $DISPROD_PATH/ros1-turtlebot/catkin_ws/src
 git clone https://github.com/itsmeashutosh43/pid-heron
 ```
 
-## Build the files
+#### Build the files
 ```shell
 cd $DISPROD_PATH/ros1-turtlebot/catkin_ws
 rm -rf build devel
@@ -30,13 +31,7 @@ catkin_make
 cd devel && source setup.sh
 ```
 
-In case of using the PID controller, set these in accordance to the README of the PID-repository.
-```shell
-export ROS_MASTER_URI=http://localhost:11311
-export ROS_HOSTNAME=localhost
-```
-
-## Lowering the simulation time
+#### Lowering the simulation time
 > Note: Running DiSProD is a computationally extensive task, therefore we should lower the simulation time to see it working. 
 
 ```shell
@@ -55,7 +50,7 @@ And update the world file with the following settings inside the physics tag. Mo
 If time step size is 1ms, throttling at 200 steps/second effectively
 throttles simulation down to .2X real-time.
 
-## Set x_pose, y_pose from config file
+#### Set x_pose, y_pose from config file
 
 To set the x,y coordinate of the turtlebot from the config file, 
 
@@ -71,38 +66,65 @@ and remove the following line (It should be towards the bottom of the document i
 
 ```
 
-## Running the simulation
+## Running the simulation and the planner
+
+1. Run Gazebo in terminal (T1).
 ```shell
 # Terminal 1: Launch Gazebo
-# For headless mode, see example below
 export TURTLEBOT3_MODEL=burger
 roslaunch turtlebot3_gazebo turtlebot3_empty_world.launch
+```
 
+2. Run RViz in a separate terminal (T2).
+```shell
 # Terminal 2: Launch RViz
 export TURTLEBOT3_MODEL=burger
 roslaunch turtlebot3_gazebo turtlebot3_gazebo_rviz.launch
 ```
 
-## Running the planner
-
+3. Run the planner (T3)
+```shell
+# Terminal 3: Run the planner to control the bot directly
+rosrun turtlebotwrapper planwrapper.py --alg=disprod --map_name=no-ob-1
 ```
-rosrun turtlebotwrapper planwrapper.py --alg disprod --map_name no-ob-1
+
+## Using PID
+
+By default, the agent controls the TurtleBot directly by publishing the action commands to `/cmd_vel`. However, it is possible to use a low level controller such as PID to issue action commands. In this case, the agent sends a sequence of waypoints to the PID controller. 
+
+4. Start the PID controller first in a separate terminal (T4)
+
+```shell
+# Terminal 4: Start the PID controller node
+cd $DISPROD_PATH/ros1-turtlebot/catkin_ws/src/pid-heron/scripts
+python3 tracking_pid_node.py
 ```
 
-### Configuration Options
+5. And run the planner (T3) using `--control=pid` argument.
 
-- `--log_file`: The path to the log file. If not specified, no log file will be created.
-- `--seed`: Seed for the Pseudo Random Number Generator (PRNG). Default is `42`.
-- `--env`: The environment to be used. Default is `continuous_dubins_car_w_velocity`. Note: this configuration can also be used for boat experiments.
-- `--noise`: A flag that indicates whether to add noise to the system. Default is `False`.
-- `--alg`: The algorithm to be used. Default is `disprod`. Options are `mppi`, `cem`, and `disprod`.
-- `--poseVisualization`: A flag that indicates whether to visualize the pose of the system. Default is `True`.
-- `--map_name`: The name of the map to be used. The default map configs are located in `env/assets/dubins.json`
-- `--run_name`: The name of the run. Can be used to identify different runs. No default value.
-- `--vehicle_type`: The type of vehicle to be used. Default is `turtlebot`. Options are `turtlebot` and `uuv`.
-- `--control`: The type of control to be used. Default is `self`. Options are `self` (publishes message to `/cmd_vel`) and `pid` (publishes to the PID controller).
-- `--skip_waypoints`: The number of waypoints to be skipped before sending to the PID controller. Default is `1`. Relevant only if using PID controller. If set to `1`, the PID controller will be slow as it will try to match waypoints that are clustered together.
+```shell
+# Terminal 3: Run the planner with control set to pid
+rosrun turtlebotwrapper planwrapper.py --alg=disprod --map_name=no-ob-1 --control=pid
+```
 
-### No-var mode
 
-To run the experiments in no variance mode, set `taylor_expansion_mode = no_var` in `config/continuous_dubins_car_w_velocity.yaml`
+## Configuration Options
+
+- `--seed`: Seed for the Pseudo Random Number Generator (PRNG).
+- `--alg`: The planner to be used. Valid values are `disprod`,`cem` and `mppi`.
+- `--pose_viz`: A flag that indicates whether to plot the trajectory being imagined by the planner. 
+- `--map_name`: The name of the map to be used. Valid values are listed below.
+- `--run_name`: The name of the run to identify different runs. 
+- `--vehicle_type`: The type of vehicle to be used. Valid values are `turtlebot` and `uuv`.
+- `--control`: The type of control to be used. Valid values are `self` and `pid`.
+- `--skip_waypoints`: The number of waypoints to be skipped before sending to the PID controller.
+
+> Note: If `--skip_waypoints==1`, then the PID controller will be slow as it will try to match waypoints that are clustered together.
+
+#### Map configrations
+All the map configurations are defined in [env/assets/dubins.json](../env/assets/dubins.json). At present, the available maps are `no-ob-[1-5]`, `ob-[1-11]`, `u` and `cave-mini`.
+
+## Using DiSProD-NV mode
+
+To run the experiments using DiSProD-NV, set `taylor_expansion_mode = no_var` in `config/continuous_dubins_car.yaml`
+

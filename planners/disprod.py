@@ -1,9 +1,5 @@
-from utils.common_utils import print_, load_method
-import jax
-import jax.numpy as jnp
+from utils.common_utils import load_method
 from functools import partial
-
-
 
 class Disprod:
     def __init__(self, env, cfg):
@@ -33,7 +29,6 @@ class Disprod:
         self.promising_restart = None
 
         self.log_file = cfg["log_file"]
-
 
     def set_goal(self, goal_position):
         self.env.goal_x, self.env.goal_y = goal_position

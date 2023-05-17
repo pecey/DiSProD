@@ -11,7 +11,6 @@ import time
 from pathlib import Path
 
 
-
 # Miscellaneous functions
 # Dynamically load a function from a module
 def load_method(name):
@@ -73,9 +72,6 @@ def setup_environment(config):
         
     if config["env_name"] in ["continuous-mountain-car-v3"]:
         kwargs_dict.update({'n_actions': config['n_actions']})
-        
-    # if config["env_name"] in ["continuous-cartpole-hybrid-v1"]:
-    #    kwargs_dict.update({'ignore_shaky_in_planner': config["ignore_shaky_in_planner"]})
         
     register(
         id=config['env_name'],

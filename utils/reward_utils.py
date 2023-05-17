@@ -17,7 +17,6 @@ def euclidean_distance(position, target):
     return jnp.sqrt(jnp.square(x - goal_x) + jnp.square(y - goal_y))
 
 
-# Used in Hybrid cartpole. Returns 0 if outside limits and a value close to 1 if within limits.
 # To make it sharp, increase sharpness
 def is_between_smooth(x, lower_limit, upper_limit, sharpness=10):
     return 2 * jax.nn.sigmoid(sharpness * (jax.nn.relu(x - lower_limit) * jax.nn.relu(upper_limit - x))) - 1

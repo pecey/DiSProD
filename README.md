@@ -2,6 +2,8 @@
 
 [DiSProD](planners/continuous_disprod.py) is an online planner developed for environments with probabilistic transitions with continuous action spaces. DiSProD builds a symbolic graph that captures the distribution of future trajectories, conditioned on a given policy, using independence assumptions and approximate propagation of distributions. The symbolic graph provides a differentiable representation of the policy’s value, enabling efficient gradient-based optimization for long-horizon search. The propagation of approximate distributions can be seen as an aggregation of many trajectories, making it well-suited for dealing with sparse rewards and stochastic environments. While most of our experiments are with continuous state spaces, we can work with hybrid state spaces as well. We also provide [an implementation](planners/discrete_disprod.py) for a version of DiSProD that works with binary action spaces, but it has not been tested extensively.
 
+> The code has been tested on Python 3.8.10 using Ubuntu 20.04.
+
 ## Instructions
 
 #### Setting up repo
