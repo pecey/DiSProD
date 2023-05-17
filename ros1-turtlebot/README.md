@@ -30,11 +30,6 @@ catkin_make
 cd devel && source setup.sh
 ```
 
-In case of using the PID controller, set these in accordance to the README of the PID-repository.
-```shell
-export ROS_MASTER_URI=http://localhost:11311
-export ROS_HOSTNAME=localhost
-```
 
 ## Lowering the simulation time
 > Note: Running DiSProD is a computationally extensive task, therefore we should lower the simulation time to see it working. 
@@ -85,9 +80,26 @@ roslaunch turtlebot3_gazebo turtlebot3_gazebo_rviz.launch
 
 ## Running the planner
 
+### Running in self mode
 ```
 rosrun turtlebotwrapper planwrapper.py --alg disprod --map_name no-ob-1
 ```
+
+### Running in pid mode
+
+In case of using the PID controller, run this in one terminal
+
+```shell
+cd $DISPROD_PATH/ros1-turtlebot/catkin_ws/src/pid-heron/scripts
+python3 tracking_pid_node.py
+```
+
+and 
+
+```
+rosrun turtlebotwrapper planwrapper.py --alg disprod --map_name no-ob-1 --pose_viz False --control pid
+```
+
 
 ### Configuration Options
 
