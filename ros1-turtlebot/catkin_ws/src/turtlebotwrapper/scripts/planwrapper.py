@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 
 import argparse
-from ast import Raise
-import imp
 from logging import shutdown
 
 import rospy
@@ -10,8 +8,6 @@ import numpy as np
 import sys
 import os
 import xml.etree.ElementTree as ET
-import json
-import tf
 from omegaconf import OmegaConf
 import torch as T
 import time
@@ -23,7 +19,7 @@ import jax
 
 
 
-AWESOME_SOGBOFA_PATH = os.getenv("AWESOME_SOGBOFA_PATH")
+AWESOME_SOGBOFA_PATH = os.getenv("AWESOME_DISPROD_PATH")
 sys.path.append(AWESOME_SOGBOFA_PATH)
 sys.path.append(os.path.join(AWESOME_SOGBOFA_PATH, "ros1-turtlebot"))
 AWESOME_SOGBOFA_CONF_PATH = os.path.join(AWESOME_SOGBOFA_PATH, "config")
@@ -466,9 +462,7 @@ def main(args):
     
     tw.plan_one_step = load_method(env_cfg['ros_interface'])
     
-    # Set nn_model flag to False in env_cfg
-    env_cfg['nn_model'] = False
-
+    
     # Set up the planner using the environment and env_cfg
     tw.planner = setup_planner(tw.env, env_cfg)
 
