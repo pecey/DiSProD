@@ -80,34 +80,24 @@ class SimpleEnv(gym.Env):
         self.x_traj = [self.x]
         self.y_traj = [self.y]
         
-        self.imagine_x_traj = np.array([self.x])
-        self.imagine_y_traj = np.array([self.y])
+        self.imag_x_traj = np.array([self.x])
+        self.imag_y_traj = np.array([self.y])
         
         self.reset_canvas()
         return np.array((self.x, self.y))
     
-    def set_imagined_trajectory_data(self, best_path, all_paths = None):
-        self.imagine_x_traj = np.array(best_path[0, :, 0])
-        self.imagine_y_traj = np.array(best_path[0, :, 1])
-        self.imagine_x_sd = np.sqrt(np.array(best_path[1, :, 0]))
-        self.imagine_y_sd = np.sqrt(np.array(best_path[1, :, 1]))
+    def set_imag_traj_data(self, tau):
+        self.imag_x_traj = np.array(tau[:, 0])
+        self.imag_y_traj = np.array(tau[:, 1])
         
         for el in self.ax.lines[4:]:
             el.remove()
         
-        if all_paths is not None:
-            for i in range(all_paths.shape[0]):
-                x_traj = np.array(all_paths[i, 0, :, 0])
-                y_traj = np.array(all_paths[i, 0, :, 1])
-                self.ax.plot(x_traj, y_traj, alpha=0.2)
-        
-        self.imagine_graph.set_data(self.imagine_x_traj, self.imagine_y_traj)
+        self.imagine_graph.set_data(self.imag_x_traj, self.imag_y_traj)
         self.ax.collections.clear()
         
         x,y,z = self.contour_data
         self.ax.contour(x,y,z)
-        self.ax.fill_between(self.imagine_x_traj, self.imagine_y_traj - self.imagine_y_sd, self.imagine_y_traj + self.imagine_y_sd, alpha=0.2, interpolate=True, color='r')
-        self.ax.fill_betweenx(self.imagine_y_traj, self.imagine_x_traj - self.imagine_x_sd, self.imagine_x_traj + self.imagine_x_sd, alpha=0.2, interpolate=True, color='r')
         
     def render(self, mode='human', close=False):
         self.graph.set_data(self.x_traj, self.y_traj)
@@ -131,7 +121,7 @@ class SimpleEnv(gym.Env):
         self.ax.set_ylim(self.min_y, self.max_y)
 
         self.graph, = self.ax.plot(self.x_traj, self.y_traj, '--', alpha=0.8)
-        self.imagine_graph, = self.ax.plot(self.imagine_x_traj, self.imagine_y_traj, '--', c='r')
+        self.imagine_graph, = self.ax.plot(self.imag_x_traj, self.imag_y_traj, '--', c='r')
         self.marker, = self.ax.plot(self.x, self.y, 'o')
 
         # Goal plotted by a green "x"

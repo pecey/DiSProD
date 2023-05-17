@@ -15,6 +15,8 @@ env_file: env.continuous_dubins_env_properties:EnvironmentProperties
 vehicle_model: turtlebot ## or jackal
 ros_interface: planners.ros_interface:plan_one_step_dubins_car
 fixed_time_pub_mode: False
+# Set this to true to plot the hallucinated states that the planner thinks it will visit.
+plot_imagined_trajectory: False
 
 mppi:
   n_samples: 400

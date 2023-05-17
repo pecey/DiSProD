@@ -159,31 +159,22 @@ class ContinuousDubinsCar(gym.Env):
         with open(self.config_file, 'r') as f:
             config_data = f.read()
         config_json = json.loads(config_data)
-        # Load config from file
-        if config_json['use_map'] == 1: 
-            # Update obstacles
-            maps = config_json['maps']
-            selected_config = np.random.choice(maps) if self.map_name == "random" else maps[self.map_name]
-            self.x, self.y = selected_config['x'], selected_config['y']
-            self.goal_x, self.goal_y = selected_config['goal_x'], selected_config['goal_y']
-            self.obstacles = selected_config['obstacles'] if self.add_obstacle else list()
-            # Update boundary
-            boundary = selected_config["boundary"] if selected_config.get("boundary", None) else np.random.choice(config_json['boundary'])
-            self.min_x_position, self.max_x_position, self.min_y_position, self.max_y_position = boundary['x_min'], boundary['x_max'], boundary['y_min'], boundary['y_max']
-            self.reset_observation_space()
-            self.boundary_width = boundary['boundary_width']
-            self.boundary = generate_boundary(self.min_x_position, self.max_x_position, self.min_y_position, self.max_y_position, self.boundary_width)
-            self.obstacle_matrix = np.stack([np.array([el['x'], el['x']+el['width'], el['y'], el['y']+el['height']]) for el in (self.obstacles + self.boundary)])
-            self.theta = 0
-
-        else:
-            self.obstacles = list()
-            self.obstacle_matrix = np.stack([np.array([el['x'], el['x']+el['width'], el['y'], el['y']+el['height']]) for el in (self.obstacles + self.boundary)])
-
-            
-            self.x , self.y , self.theta = self.get_random_state()[:3]
-            self.goal_x , self.goal_y = self.get_random_state()[:2] 
         
+        # Update obstacles
+        maps = config_json['maps']
+        selected_config = np.random.choice(maps) if self.map_name == "random" else maps[self.map_name]
+        self.x, self.y = selected_config['x'], selected_config['y']
+        self.goal_x, self.goal_y = selected_config['goal_x'], selected_config['goal_y']
+        self.obstacles = selected_config['obstacles'] if self.add_obstacle else list()
+        # Update boundary
+        boundary = selected_config["boundary"] if selected_config.get("boundary", None) else np.random.choice(config_json['boundary'])
+        self.min_x_position, self.max_x_position, self.min_y_position, self.max_y_position = boundary['x_min'], boundary['x_max'], boundary['y_min'], boundary['y_max']
+        self.reset_observation_space()
+        self.boundary_width = boundary['boundary_width']
+        self.boundary = generate_boundary(self.min_x_position, self.max_x_position, self.min_y_position, self.max_y_position, self.boundary_width)
+        self.obstacle_matrix = np.stack([np.array([el['x'], el['x']+el['width'], el['y'], el['y']+el['height']]) for el in (self.obstacles + self.boundary)])
+        self.theta = 0
+
         self.linear_velocity, self.angular_velocity = 0, 0
         
         self.x_traj = [self.x]
@@ -241,11 +232,10 @@ class ContinuousDubinsCar(gym.Env):
             data = data.reshape(self.fig.canvas.get_width_height()[::-1] + (3,))
             return data
 
-    def set_imagined_trajectory_data(self, msgs):
-        self.imagine_x_traj = [msg[0] for msg in msgs]
-        self.imagine_y_traj = [msg[1] for msg in msgs]
+    def set_imag_traj_data(self, tau):
+        self.imagine_x_traj = np.array(tau[:, 0])
+        self.imagine_y_traj = np.array(tau[:, 1])
         self.imagine_graph.set_data(self.imagine_x_traj,self.imagine_y_traj)
-
         plt.pause(0.01)
 
         

@@ -81,6 +81,7 @@ class ShootingCEM():
     @partial(jax.jit, static_argnums=(0,))
     def choose_action(self, obs, ac_seq, key):        
         # Shape: (plan_horizon, nA)
+        obs = obs.astype(jnp.float32)
         init_mean = ac_seq
         init_var = jnp.tile(jnp.square(self.ac_ub - self.ac_lb)/16, [self.plan_horizon, 1])
         _, mean, _, key = self.plan_fn(obs, init_mean, init_var, key)
@@ -95,7 +96,7 @@ def gen_state_seq(dynamics_fn, noise_gen_fn, nS, plan_horizon, env):
         obs, ac_seq, noise, tau = val
         feats = jnp.concatenate((obs, noise[d]), 0)
         next_obs = dynamics_fn(feats, ac_seq[d], env)
-        tau = tau.at[d + 1].set(next_obs)
+        tau = tau.at[d].set(next_obs)
         return next_obs, ac_seq, noise, tau
     
     def _gen_state_seq(obs, ac_seq, key):

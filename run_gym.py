@@ -24,7 +24,8 @@ ENV_MAPPING = { "cp": "cartpole",
                 "ccp_h"  : "continuous_cartpole_hybrid", 
                 "cmc_sp"  : "sparse_continuous_mountain_car", 
                 "cdc"   : "continuous_dubins_car",
-                "cmc_hd" : "continuous_mountain_car_high_dim"}
+                "cmc_hd" : "continuous_mountain_car_high_dim",
+                "se": "simple_env"}
 
 def run(cfg, queue, n_episodes, seeds):
     scores = []
@@ -45,15 +46,13 @@ def run(cfg, queue, n_episodes, seeds):
         # agent.reset()
         frames = []
         while not done:
-            # _, imagined_trajectory = agent.choose_action(agent, env, obs)
             action, ac_seq, tau, key = agent.choose_action(obs, ac_seq, key)
-            # action, _ = agent.choose_action(obs)
             n_step += 1
             print(f"Step: {n_step}, State: {obs}, Action: {action}")
             if cfg['debug_planner']:
                 print_(f"Step: {n_step}, State: {obs}, Action: {action}", cfg['log_file'])
-            # if cfg["plot_imagined_trajectory"]:
-            #     env.set_imagined_trajectory_data(imagined_trajectory)
+            if cfg["plot_imagined_trajectory"]:
+                env.set_imag_traj_data(tau)
             if cfg['render']:
                 env.render()
             if cfg['save_as_gif']:
@@ -73,7 +72,7 @@ def run(cfg, queue, n_episodes, seeds):
         # Dump scores as JSON
         scores.append({"seed": seeds[idx], "returns": total_reward, "steps": n_step})
         if "dubins" in cfg["env_name"]:
-            env.save_trajectory(f"{cfg['graph_dir']}", f"{seeds[idx]}_trajectory")
+            env.save_trajectory(f"{cfg['graph_dir']}", f"{seeds[idx]}_tau")
 
     queue.put(scores)
 
@@ -142,7 +141,7 @@ def setup_virtual_display():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--env', type=str, choices=["cp", "ccp", "mc", "cmc", "p", "ccp_h", "cmc_sp", "cdc", "cmc_hd"], required=True)
+    parser.add_argument('--env', type=str, choices=["cp", "ccp", "mc", "cmc", "p", "ccp_h", "cmc_sp", "cdc", "cmc_hd", "se"], required=True)
     parser.add_argument('--render', type=str, default="True")
     parser.add_argument('--seed', type=int, help='Seed for PRNG', default=42)
     parser.add_argument('--run_name', type=str, help='Run Name', default=str(int(time.time())))
