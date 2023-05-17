@@ -21,17 +21,6 @@ def simple_env(state, action, env, sparsity_multiplier):
 # Reward function for Continuous Dubins Car
 def continuous_dubins_car(state, action, env):
     goal_x, goal_y, goal_boundary = env.goal_x, env.goal_y, env.goal_boundary
-    x, y = state[0], state[1]
-    distance_from_goal = euclidean_distance((x, y), (goal_x, goal_y))
-    agent_outside_boundary = jnp.tanh(1 * jax.nn.relu(distance_from_goal - goal_boundary))
-    not_done = agent_outside_boundary
-    done = 1 - not_done
-    return done - 100 * get_number_of_collisions(x, y, env)
-
-
-# Reward function for Continuous Dubins Car
-def continuous_dubins_car_w_velocity(state, action, env):
-    goal_x, goal_y, goal_boundary = env.goal_x, env.goal_y, env.goal_boundary
     x, y = state[0] , state[1]
     distance_from_goal = euclidean_distance((x, y), (goal_x, goal_y))
     agent_outside_boundary = jnp.tanh(1 * jax.nn.relu(distance_from_goal - goal_boundary))

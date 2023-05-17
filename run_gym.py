@@ -23,7 +23,7 @@ ENV_MAPPING = { "cp": "cartpole",
                 "p"     : "pendulum",
                 "ccp_h"  : "continuous_cartpole_hybrid", 
                 "cmc_sp"  : "sparse_continuous_mountain_car", 
-                "cdc"   : "continuous_dubins_car_w_velocity",
+                "cdc"   : "continuous_dubins_car",
                 "cmc_hd" : "continuous_mountain_car_high_dim"}
 
 def run(cfg, queue, n_episodes, seeds):

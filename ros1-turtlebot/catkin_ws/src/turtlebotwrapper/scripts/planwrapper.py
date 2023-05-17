@@ -335,6 +335,8 @@ def prepare_config(env_name, cfg_path=None):
     return OmegaConf.merge(planner_default_cfg, planner_env_cfg)
 
 def main(args):
+    if args.env_name != "continuous_dubins_car":
+        raise Exception(f"Planwrapper is only intended for continuous_dubins_car. Got {args.env_name}")
     cfg = prepare_config(args.env_name, DISPROD_CONF_PATH)
     cfg['mode'] = 'tbot_evaluation'
     cfg = update_config_with_args(cfg, args , base_path=DISPROD_PATH)
@@ -410,10 +412,10 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.add_argument('--seed', type=int, help='Seed for PRNG', default=42)
         # Passing env_name as args to as to reuse the same helper functions
-        parser.add_argument('--env_name', type=str, default= "continuous_dubins_car_w_velocity" , help='Note: we are using the same configurations for the boat experiments')
+        parser.add_argument('--env_name', type=str, default= "continuous_dubins_car" , help='Note: we are using the same configurations for the boat experiments')
         parser.add_argument('--alg', type=str, default="disprod" , choices = ['mppi' , 'cem' , 'disprod'])
         parser.add_argument('--pose_viz', type=bool, default=False)
-        parser.add_argument('--map_name', type=str, help="Specify the map name to be used. Only called if dubins or continuous dubins env")
+        parser.add_argument('--map_name', type=str, help="Specify the map name to be used")
         parser.add_argument('--run_name', type=str)
         parser.add_argument('--vehicle_type', type=str , choices=['turtlebot' , 'uuv'] , default= "turtlebot")
         parser.add_argument('--control', type=str , choices=['self' , 'pid'] , default="self" , help="self publishes message to /cmd_vel while pid publishes to the PID controller")

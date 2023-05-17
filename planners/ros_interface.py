@@ -17,7 +17,7 @@ def setup_planner(env, env_cfg):
 
 # In this model, the action is delta linear velocity and delta angular velocity.
 # But we have to send linear velocity and angular velocity to the bot.
-def plan_one_step_dubins_car_w_velocity(agent, env, obs, delta_ac_seq, key):
+def plan_one_step_dubins_car(agent, env, obs, delta_ac_seq, key):
     x, y, theta, old_velocity, old_angular_velocity = obs
     
     obs = np.array([round(x, 2), round(y, 2), round(theta, 2), old_velocity, old_angular_velocity])

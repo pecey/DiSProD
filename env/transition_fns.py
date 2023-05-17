@@ -26,40 +26,7 @@ def simple_env(state, actions, env):
 # Dubins Car
 ###############################################
     
-
-# Transition function for Dubins Car - Discrete and Continuous
-def dubins_car(state, actions, env):
-    left_action, nothing, right_action, brakes = actions
-    velocity = (env.turning_velocity * left_action
-                + env.turning_velocity * right_action
-                + env.default_velocity * nothing)
-
-    angular_velocity = (-env.angular_velocity * left_action
-                        + env.angular_velocity * right_action
-                        + 0 * nothing)
-
-    return _dubins_car(env, state, velocity, angular_velocity)
-
 def continuous_dubins_car(state, actions, env):
-    velocity, angular_velocity = actions
-    return _dubins_car(env, state, velocity, angular_velocity)
-
-
-def _dubins_car(env, state, velocity,angular_velocity):
-    x, y, theta, noise = state
-    dx_dt = velocity * jnp.cos(theta) * env.time_interval
-    dy_dt = velocity * jnp.sin(theta) * env.time_interval
-    dtheta_dt = (env.angular_velocity_multiplier * angular_velocity + env.alpha * noise) * env.time_interval * DEGREE_TO_RADIAN_MULTIPLIER
-    
-    x_new = jnp.clip(x + dx_dt, env.min_x_position, env.max_x_position)
-    y_new= jnp.clip(y + dy_dt, env.min_y_position, env.max_y_position)
-    theta_new = theta + dtheta_dt
-
-    new_position = jnp.array([x_new, y_new, theta_new])
-
-    return new_position
-
-def continuous_dubins_car_w_velocity_state(state, actions, env):
     delta_velocity, delta_angular_velocity = actions
     x , y, theta, old_velocity, old_angular_velocity, noise = state
 
