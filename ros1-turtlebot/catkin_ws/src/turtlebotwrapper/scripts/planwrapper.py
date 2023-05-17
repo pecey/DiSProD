@@ -19,11 +19,11 @@ import jax
 
 
 
-AWESOME_SOGBOFA_PATH = os.getenv("AWESOME_DISPROD_PATH")
-sys.path.append(AWESOME_SOGBOFA_PATH)
-sys.path.append(os.path.join(AWESOME_SOGBOFA_PATH, "ros1-turtlebot"))
-AWESOME_SOGBOFA_CONF_PATH = os.path.join(AWESOME_SOGBOFA_PATH, "config")
-AWESOME_SOGBOFA_MOD_PATH = os.path.join(AWESOME_SOGBOFA_PATH, "ros1-turtlebot/catkin_ws/sdf_models")
+AWESOME_DISPROD_PATH = os.getenv("AWESOME_DISPROD_PATH")
+sys.path.append(AWESOME_DISPROD_PATH)
+sys.path.append(os.path.join(AWESOME_DISPROD_PATH, "ros1-turtlebot"))
+AWESOME_DISPROD_CONF_PATH = os.path.join(AWESOME_DISPROD_PATH, "config")
+AWESOME_DISPROD_MOD_PATH = os.path.join(AWESOME_DISPROD_PATH, "ros1-turtlebot/catkin_ws/sdf_models")
 from visualization_helpers.marker_array_rviz import PoseArrayRviz
 
 
@@ -195,7 +195,7 @@ class TurtleBotWrapper:
         rospy.loginfo("Rendering object in gazebo")
 
         model = 'box'
-        model_path = os.path.join(AWESOME_SOGBOFA_MOD_PATH, model + '.sdf')
+        model_path = os.path.join(AWESOME_DISPROD_MOD_PATH, model + '.sdf')
 
         tree = ET.parse('{}'.format(model_path))
         root = tree.getroot()
@@ -208,7 +208,7 @@ class TurtleBotWrapper:
 
         file_name = '{}_pose_{}_{}_size_{}_{}_{}.sdf'.format(model, pose_x, pose_y, size_x, size_y, size_z)
 
-        output_file_path = os.path.join(AWESOME_SOGBOFA_MOD_PATH, file_name)
+        output_file_path = os.path.join(AWESOME_DISPROD_MOD_PATH, file_name)
         tree.write(output_file_path)
 
         os.system("rosrun gazebo_ros spawn_model -file {} -sdf -model box_target_red_{}".format(output_file_path, idx))
@@ -430,9 +430,9 @@ def prepare_config(planner, env_name, cfg_path=None):
 
 def main(args):
     device = "cuda" if T.cuda.is_available() else "cpu"
-    env_cfg = prepare_config(args.alg, args.env, AWESOME_SOGBOFA_CONF_PATH)
+    env_cfg = prepare_config(args.alg, args.env_name, AWESOME_DISPROD_CONF_PATH)
     env_cfg['mode'] = 'tbot_evaluation'
-    env_cfg = update_config_with_args(env_cfg, args)
+    env_cfg = update_config_with_args(env_cfg, args , base_path=AWESOME_DISPROD_PATH)
     env_cfg["device"] = device
     
     
@@ -445,12 +445,12 @@ def main(args):
     # Goal is set in env at this point.
     # Any changes to the goal is reflected in env when the planner_callback calls the plan function.
 
-    tw.env = load_method(env_cfg['env_file'])(env_cfg , tw.state_reader , tw.action_sender , tw.render_model , tw.start_and_goal_pub , tw.imag_trajec_pub , tw.planner_reset) 
+    tw.env = load_method(env_cfg['env_file'])(env_cfg , tw.state_reader  , tw.render_model , tw.start_and_goal_pub , tw.imag_trajec_pub , tw.planner_reset) 
     run_name = env_cfg["run_name"]
 
     depth , restart = env_cfg["depth"], env_cfg["n_restarts"]
 
-    setup_output_dirs(env_cfg, run_name)
+    setup_output_dirs(env_cfg, run_name , AWESOME_DISPROD_PATH)
 
 
     if args.poseVisualization:
@@ -524,7 +524,7 @@ if __name__ == '__main__':
         parser = argparse.ArgumentParser()
         parser.add_argument('--log_file', type=str, default=None)
         parser.add_argument('--seed', type=int, help='Seed for PRNG', default=42)
-        parser.add_argument('--env', type=str, default= "continuous_dubins_car_w_velocity" , help='Note: we are using the same configurations for the boat experiments')
+        parser.add_argument('--env_name', type=str, default= "continuous_dubins_car_w_velocity" , help='Note: we are using the same configurations for the boat experiments')
         parser.add_argument('--noise', type=str, default="False")
         parser.add_argument('--obstacles_config_file', type=str, help="Config filename without the JSON extension",
                             default="dubins")

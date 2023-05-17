@@ -15,13 +15,13 @@ class EnvironmentProperties:
     """
     If ROS interface is used, then we don't need to construct a Gym environment. It is enough to pass an object of this class.
     """
-    def __init__(self, env_cfg , state_reader , action_sender , model_renderer , start_and_goal_pub , imaginary_trajec_sender , planner_reset):
+    def __init__(self, env_cfg , state_reader  , model_renderer , start_and_goal_pub , imaginary_trajec_sender , planner_reset):
         self.state_reader = state_reader
-        self.action_sender = action_sender
         self.model_render = model_renderer
         self.start_and_goal_pub = start_and_goal_pub
         self.imaginary_trajec_sender = imaginary_trajec_sender
         self.planner_reset = planner_reset
+        self.alpha = 0
 
         
         self.goal_boundary = 0.5
@@ -149,37 +149,6 @@ class EnvironmentProperties:
             high=self.high_state,
             dtype=np.float32
         )
-
-    def step(self , action , imaginary_trajectory):
-        x , y , theta , ux , uy = self.state_reader()
-        del_ux , del_uy = action
-
-        
-
-
-
-        final_action = [np.clip(ux + del_ux , self.min_velocity , self.max_velocity) ,\
-            uy + del_uy * DEGREE_TO_RADIAN_MULTIPLIER * self.delta_angular_velocity_multiplier]
-        
-
-        self.action_sender(final_action)
-        self.imaginary_trajec_sender(imaginary_trajectory)
-
-        dist = ((x - self.goal_x)**2 + (y - self.goal_y)**2)**0.5
-
-        if  dist < 0.5:
-            self.done = True
-        
-
-        sleep(0.2)
-        next_observation = self.state_reader()
-        reward = 0
-
-        self.count += 1
-        if self.count == 200:
-            self.done = True
-
-        return np.array([x , y, theta , final_action[0] , final_action[1]]),np.array(next_observation), reward, self.done, {}
 
     
     def get_random_state(self):
