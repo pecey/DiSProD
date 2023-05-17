@@ -103,6 +103,7 @@ def gen_state_seq(dynamics_fn, noise_gen_fn, nS, plan_horizon, env):
         tau = jnp.zeros((plan_horizon, nS))
         init_val=(obs, ac_seq, noise[:, 0, :], tau)
         _, _, _, tau = jax.lax.fori_loop(0, plan_horizon, _gen_next_state, init_val)
+        return tau
     return _gen_state_seq
 
 # Function to generate action sequences

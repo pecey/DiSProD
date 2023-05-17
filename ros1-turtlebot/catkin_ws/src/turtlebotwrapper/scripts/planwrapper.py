@@ -39,7 +39,6 @@ class LowLevelController():
         self.controller = controller
         
     def publish(self, msg):
-        print(f"Pushishing msg for {self.controller}")
         self.publisher.publish(msg)
 
 
@@ -63,7 +62,7 @@ class TurtleBotWrapper:
             print("Registering self controller")
             self.publisher.register(Twist , "cmd_vel" , "self")
         else:
-            print("Registering pid controller")
+            print("Registering PID controller")
             self.publisher.register(states , "states_to_be_followed" , "pid")
 
         # Publishers
@@ -307,8 +306,9 @@ class TurtleBotWrapper:
     def state_reader(self):
         return [self.pose['x_pos'], self.pose['y_pos'], self.pose['yaw'] , self.pose['x_vel'] , self.pose['ang_vel']]
 
-    def imag_trajec_pub(self , imag_traj):
-        self.pose_array_viz.publish(imag_traj)
+    # This can be used to plot the trajectory that the planner thinks it will take
+    def imag_traj_pub(self, states):
+        self.pose_array_viz.publish(states)
         
     def planner_reset(self):
         self.planner.reset()
@@ -389,13 +389,13 @@ def main(args):
     
         # Check if the current step number has changed
         if step_num == curr_step_num:
-            print_(f"{cfg['map_name']}  , {step_num}", cfg['log_file'])
+            print(f"{cfg['map_name']}, {step_num}", cfg['log_file'])
             rospy.signal_shutdown("Environment is solved")
 
         # Check if the step number has exceeded the timeout limit
         if step_num > 400:
             rospy.signal_shutdown("Environment Timeout")
-            print_(f"{cfg['map_name']}  , 400", cfg['log_file'])
+            print_(f"{cfg['map_name']}, 400", cfg['log_file'])
             raise TimeoutError
         
         step_num = curr_step_num
@@ -411,15 +411,13 @@ if __name__ == '__main__':
         parser.add_argument('--seed', type=int, help='Seed for PRNG', default=42)
         # Passing env_name as args to as to reuse the same helper functions
         parser.add_argument('--env_name', type=str, default= "continuous_dubins_car_w_velocity" , help='Note: we are using the same configurations for the boat experiments')
-        parser.add_argument('--noise', type=str, default="False")
         parser.add_argument('--alg', type=str, default="disprod" , choices = ['mppi' , 'cem' , 'disprod'])
-        parser.add_argument('--pose_viz', type=bool, default=True)
+        parser.add_argument('--pose_viz', type=bool, default=False)
         parser.add_argument('--map_name', type=str, help="Specify the map name to be used. Only called if dubins or continuous dubins env")
         parser.add_argument('--run_name', type=str)
         parser.add_argument('--vehicle_type', type=str , choices=['turtlebot' , 'uuv'] , default= "turtlebot")
         parser.add_argument('--control', type=str , choices=['self' , 'pid'] , default="self" , help="self publishes message to /cmd_vel while pid publishes to the PID controller")
-        parser.add_argument('--skip_waypoints', type=int , default=1 , help = 'How many waypoints to skip from the state-sThis is relevant for control pid. As the name suggests this is used to skip waypoints before sending to pid. From our observation, if we set this parameter to be 1, pid controller will be slow, as it will try to match waypoints that are clustered together')
-        
+        parser.add_argument('--skip_waypoints', type=int , default=1 , help = 'Number of states to skip to generate waypoints for PID')
         args = parser.parse_args()
         main(args)
     except rospy.ROSInterruptException:
