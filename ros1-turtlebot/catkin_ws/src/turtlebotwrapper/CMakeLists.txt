@@ -164,7 +164,7 @@ include_directories(
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
 
-catkin_install_python(PROGRAMS scripts/planwrapper.py scripts/goalsetter.py
+catkin_install_python(PROGRAMS scripts/planwrapper.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

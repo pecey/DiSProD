@@ -83,8 +83,6 @@ class TurtleBotWrapper:
             self.timer = rospy.Timer(rospy.Duration(1/self.pub_rate), self.publisher_callback)
         self.pose_received = False
         self.rate = rospy.Rate(self.pub_rate)  # hz ie 0.2 sec
-        self.goal_x = None
-        self.goal_y = None
         
         self.pose = None
         self.last_linear_vel, self.last_angular_vel = 0,0
@@ -100,7 +98,7 @@ class TurtleBotWrapper:
 
     # Publish the start marker.
     def publish_start_marker(self):
-        goal = self.create_marker(self.start_x , self.start_y)
+        goal = self.create_marker(self.env.x , self.env.y)
         self.start_markers.markers.append(goal)
         self.start_pub.publish(self.start_markers)
     
@@ -244,7 +242,7 @@ class TurtleBotWrapper:
 
         self.publish_goal_marker()
         state = np.array([self.pose['x_pos'], self.pose['y_pos'], self.pose['yaw'], self.last_linear_vel , self.last_angular_vel])[:self.env.nS]
-        goal = np.array([self.goal_x, self.goal_y])
+        goal = np.array([self.env.goal_x, self.env.goal_y])
 
         time1 = rospy.Time().now().to_sec()
 
@@ -306,19 +304,12 @@ class TurtleBotWrapper:
         cmd = generate_command_message([linear_velocity , angular_velocity])
         self.publisher.publish(cmd)
 
-
     def state_reader(self):
         return [self.pose['x_pos'], self.pose['y_pos'], self.pose['yaw'] , self.pose['x_vel'] , self.pose['ang_vel']]
 
-    def start_and_goal_pub(self , x  , y , goal_x , goal_y):
-        self.goal_x = goal_x
-        self.goal_y = goal_y
-        self.start_x , self.start_y = x , y
-        self.publish_goal_marker()
-        self.publish_start_marker()
-
     def imag_trajec_pub(self , imag_traj):
         self.pose_array_viz.publish(imag_traj)
+        
     def planner_reset(self):
         self.planner.reset()
 
@@ -349,7 +340,7 @@ def main(args):
     cfg = update_config_with_args(cfg, args , base_path=DISPROD_PATH)
     
     set_global_seeds(cfg['seed'])
-    setup_output_dirs(cfg, run_name , DISPROD_PATH)
+    setup_output_dirs(cfg, cfg["run_name"] , DISPROD_PATH)
 
     odom_msg = "/odom" if args.vehicle_type == "turtlebot" else "/odometry/filtered"
     frame = "odom" if args.vehicle_type == "turtlebot" else "odom"
@@ -361,11 +352,9 @@ def main(args):
                           skip_waypoints=args.skip_waypoints)
     
     tw.env = load_method(cfg['env_file'])(cfg) 
-    run_name = cfg["run_name"]
-    depth , restart = cfg["depth"], cfg["n_restarts"]
 
     if args.pose_viz:
-        tw.pose_array_viz = PoseArrayRviz(depth, restart)
+        tw.pose_array_viz = PoseArrayRviz(cfg["depth"], cfg["disprod"]["n_restarts"])
     else:
         tw.pose_array_viz = None 
 
@@ -377,18 +366,10 @@ def main(args):
     ac_seq, key = tw.planner.reset(key)
 
     # Render the model with the specified vehicle type and coordinates
-    tw.render_model(args.vehicle_type, cfg["config"]["x"], cfg["config"]["y"])
+    tw.render_model(args.vehicle_type, tw.env.x, tw.env.y)
 
     # Treat the boundaries of the environment as obstacles
     tw.env.boundaries_as_obstacle()
-
-    # Set the goal coordinates in the planner
-    tw.goal_x = cfg["config"]["goal_x"]
-    tw.goal_y = cfg["config"]["goal_y"]
-
-    # Set the start coordinates in the planner
-    tw.start_x = cfg['config']["x"]
-    tw.start_y = cfg['config']['y']
 
     # Publish markers for the goal position, start position, and obstacles
     tw.publish_goal_marker()
@@ -427,18 +408,17 @@ def main(args):
 if __name__ == '__main__':
     try:
         parser = argparse.ArgumentParser()
-        parser.add_argument('--log_file', type=str, default=None)
         parser.add_argument('--seed', type=int, help='Seed for PRNG', default=42)
+        # Passing env_name as args to as to reuse the same helper functions
         parser.add_argument('--env_name', type=str, default= "continuous_dubins_car_w_velocity" , help='Note: we are using the same configurations for the boat experiments')
         parser.add_argument('--noise', type=str, default="False")
         parser.add_argument('--alg', type=str, default="disprod" , choices = ['mppi' , 'cem' , 'disprod'])
         parser.add_argument('--pose_viz', type=bool, default=True)
         parser.add_argument('--map_name', type=str, help="Specify the map name to be used. Only called if dubins or continuous dubins env")
-        parser.add_argument('--nn_model',  help="If true nn based model will be used",type = bool, default=False)
-        parser.add_argument('--run_name', type = str)
-        parser.add_argument('--vehicle_type' , type=str , choices=['turtlebot' , 'uuv'] , default= "turtlebot")
-        parser.add_argument('--control' , type = str , choices=['self' , 'pid'] , default="self" , help="self publishes message to /cmd_vel while pid publishes to the PID controller")
-        parser.add_argument('--skip_waypoints' , type=int , default=1 , help = 'How many waypoints to skip from the state-sThis is relevant for control pid. As the name suggests this is used to skip waypoints before sending to pid. From our observation, if we set this parameter to be 1, pid controller will be slow, as it will try to match waypoints that are clustered together')
+        parser.add_argument('--run_name', type=str)
+        parser.add_argument('--vehicle_type', type=str , choices=['turtlebot' , 'uuv'] , default= "turtlebot")
+        parser.add_argument('--control', type=str , choices=['self' , 'pid'] , default="self" , help="self publishes message to /cmd_vel while pid publishes to the PID controller")
+        parser.add_argument('--skip_waypoints', type=int , default=1 , help = 'How many waypoints to skip from the state-sThis is relevant for control pid. As the name suggests this is used to skip waypoints before sending to pid. From our observation, if we set this parameter to be 1, pid controller will be slow, as it will try to match waypoints that are clustered together')
         
         args = parser.parse_args()
         main(args)
