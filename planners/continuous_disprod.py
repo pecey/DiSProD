@@ -181,7 +181,7 @@ class ContinuousDisprod(Disprod):
         # best_restart = random_argmax(subkey2, q_value)
         best_restart = jnp.nanargmax(q_value)
         ac_seq = ac_mean[best_restart]
-        state_seq = tau[best_restart]
+        state_seq = tau[best_restart][0]
 
         ac = self.ac_selector(scaled_ac_mean[best_restart][0], scaled_ac_var[best_restart][0], subkey3)
         
