@@ -1,6 +1,5 @@
 import numpy as np
 import json
-from time import sleep
 from gym import spaces
 DEGREE_TO_RADIAN_MULTIPLIER = np.pi/180
 

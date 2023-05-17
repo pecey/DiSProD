@@ -1,6 +1,5 @@
 import jax.numpy as jnp
 import jax
-from jax import custom_jvp
 
 DEGREE_TO_RADIAN_MULTIPLIER = jnp.pi / 180
 

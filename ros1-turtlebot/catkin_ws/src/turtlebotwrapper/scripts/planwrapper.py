@@ -7,7 +7,6 @@ import sys
 import os
 import xml.etree.ElementTree as ET
 from omegaconf import OmegaConf
-import time
 import jax
 
 DISPROD_PATH = os.getenv("DISPROD_PATH")
@@ -18,7 +17,7 @@ DISPROD_MOD_PATH = os.path.join(DISPROD_PATH, "ros1-turtlebot/catkin_ws/sdf_mode
 
 from visualization_helpers.marker_array_rviz import PoseArrayRviz
 
-from geometry_msgs.msg import Twist, Point, TwistStamped
+from geometry_msgs.msg import Twist, TwistStamped
 from nav_msgs.msg import Odometry
 from math import atan2, asin
 from tracking_pid.msg import states, state
@@ -26,7 +25,7 @@ from tracking_pid.msg import states, state
 from visualization_msgs.msg import Marker, MarkerArray
 
 from planners.ros_interface import setup_planner 
-from utils.common_utils import print_, set_global_seeds, prepare_config, update_config_with_args, setup_output_dirs , load_method
+from utils.common_utils import print_, set_global_seeds, prepare_config, update_config_with_args, setup_output_dirs, load_method
 
 DEGREE_TO_RADIAN_MULTIPLIER = np.pi / 180
 

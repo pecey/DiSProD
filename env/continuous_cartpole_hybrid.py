@@ -12,7 +12,6 @@ import gym
 import numpy as np
 from gym import logger, spaces
 from gym.utils import seeding
-from utils.reward_utils import is_between_smooth
 import matplotlib.pyplot as plt
 
 

@@ -1,9 +1,8 @@
 from tensorflow_probability.substrates import jax as tfp
 import jax
 import jax.numpy as jnp
-import numpy as np
 from functools import partial
-from utils.common_utils import print_, load_method
+from utils.common_utils import load_method
 
 
 tfd = tfp.distributions
