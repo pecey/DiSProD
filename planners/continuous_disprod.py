@@ -42,8 +42,10 @@ class ContinuousDisprod(Disprod):
         
         if self.n_bin_var == 0:
             noise_dist = (jnp.array([norm_mu]), jnp.array([norm_var]))
+            noise_var = 1
         else:  
             noise_dist = (jnp.array([norm_mu, uni_mu]), jnp.array([norm_var, uni_var]))
+            noise_var = 2
         
         # Dynamics distribution function
         if cfg["disprod"]["taylor_expansion_mode"] == "complete":
@@ -72,9 +74,15 @@ class ContinuousDisprod(Disprod):
         else:
             self.ac_selector = lambda m,v,key: m + jnp.sqrt(v) * jax.random.normal(key, shape=(self.nA,)) 
             
+        # Functions to generate the Q-computation graph    
         self.rollout_fn = rollout_graph(self.dynamics_dist_fn, self.reward_dist_fn)
         self.q_fn = q(noise_dist, self.depth, self.rollout_fn)
         self.batch_q_fn = jax.vmap(self.q_fn, in_axes=(0, 0, 0), out_axes=(0))
+
+        # Functions to generate the Q-computation graph and output the set of trajectories as a byproduct.
+        self.rollout_tau_fn = rollout_graph_tau(self.dynamics_dist_fn, self.reward_dist_fn)
+        self.q_tau_fn = q_tau(noise_dist, self.depth, self.nS + noise_var, self.rollout_tau_fn)
+        self.batch_q_tau_fn = jax.vmap(self.q_tau_fn, in_axes=(0, 0, 0), out_axes=(0, 0))
         
         self.batch_grad_q_fn = jax.vmap(grad_q(self.q_fn), in_axes=(0, 0, 0), out_axes=(0, 0))
 
@@ -167,16 +175,17 @@ class ContinuousDisprod(Disprod):
         # if self.debug:
         #       print(f"Gradients steps taken: {n_grad_steps}. Resets per step: {tmp}")
 
-        q_value = self.batch_q_fn(state, scaled_ac_mean, scaled_ac_var)
+        q_value, tau = self.batch_q_tau_fn(state, scaled_ac_mean, scaled_ac_var)
 
         # TODO: Figure out a JAX version of random_argmax
         # best_restart = random_argmax(subkey2, q_value)
         best_restart = jnp.nanargmax(q_value)
         ac_seq = ac_mean[best_restart]
+        state_seq = tau[best_restart]
 
         ac = self.ac_selector(scaled_ac_mean[best_restart][0], scaled_ac_var[best_restart][0], subkey3)
         
-        return jnp.clip(ac, self.ac_lb, self.ac_ub), ac_seq, key
+        return jnp.clip(ac, self.ac_lb, self.ac_ub), ac_seq, state_seq, key
 
 
 # def random_argmax(key, x, pref_idx=0):
@@ -246,6 +255,38 @@ def grad_q(q):
         grads = jax.grad(q, argnums=(1,2))(s, ac_mu, ac_var)
         return grads[0], grads[1]
     return _grad_q
+
+######################################################
+# Q-function computation graph that returns state seq 
+######################################################
+
+def q_tau(noise_dist, depth, nS, rollout_fn):
+    def _q_tau(s, a_mu, a_var):
+        """
+        Compute the Q-function for a single restart
+        """
+        noise_mean, noise_var = noise_dist
+        # augment state by adding variable for noise    
+        s_mu = jnp.concatenate([s, noise_mean], axis=0)
+        s_var = jnp.concatenate([s*0, noise_var], axis=0)
+
+        init_rew = jnp.array([0.0])
+        tau = jnp.zeros((depth, 2, nS))
+        init_params = (init_rew, s_mu, s_var, a_mu, a_var, tau)
+        agg_rew, _, _, _, _, tau = jax.lax.fori_loop( 0, depth, rollout_fn, init_params)
+        return agg_rew.sum(), tau
+    return _q_tau
+
+def rollout_graph_tau(dynamics_dist_fn, reward_dist_fn):
+    def _rollout_graph_tau(d, params):
+        agg_reward, s_mu, s_var, a_mu, a_var, tau = params
+        reward = reward_dist_fn(s_mu, s_var, a_mu[d, :], a_var[d, :])
+        ns_mu, ns_var = dynamics_dist_fn(s_mu, s_var, a_mu[d, :], a_var[d, :])
+        tau = tau.at[d].set(jnp.vstack([ns_mu, ns_var]))            
+        return agg_reward+reward, ns_mu, ns_var, a_mu, a_var, tau
+    return _rollout_graph_tau
+
+
 
 #####################################
 # Dynamics Distribution Fn

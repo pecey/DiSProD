@@ -23,7 +23,7 @@ ENV_MAPPING = { "cp": "cartpole",
                 "p"     : "pendulum",
                 "ccp_h"  : "continuous_cartpole_hybrid", 
                 "cmc_sp"  : "sparse_continuous_mountain_car", 
-                "cdc"   : "continuous_dubins_car",
+                "cdc"   : "continuous_dubins_car_w_velocity",
                 "cmc_hd" : "continuous_mountain_car_high_dim"}
 
 def run(cfg, queue, n_episodes, seeds):
@@ -46,7 +46,7 @@ def run(cfg, queue, n_episodes, seeds):
         frames = []
         while not done:
             # _, imagined_trajectory = agent.choose_action(agent, env, obs)
-            action, ac_seq, key = agent.choose_action(obs, ac_seq, key)
+            action, ac_seq, tau, key = agent.choose_action(obs, ac_seq, key)
             # action, _ = agent.choose_action(obs)
             n_step += 1
             print(f"Step: {n_step}, State: {obs}, Action: {action}")
