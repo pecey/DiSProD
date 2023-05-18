@@ -5,9 +5,11 @@
 
 Reference : [Turtlebot3 Tutorial](https://emanual.robotis.com/docs/en/platform/turtlebot3/simulation/)
 
-#### Pre-requisite
+The environment configuration is defined in `env/assets/dubins.json`. 
+
+## Pre-requisite
+Install the Turtlebot3 Simulations package for ROS Noetic.
 ```shell
-# Install the package for Turtlebot3 Simulations.
 sudo apt install ros-noetic-turtlebot3-simulations
 ```
 If `DISPROD_PATH` is not set in `~/.bashrc`, then add the following:
@@ -15,6 +17,12 @@ If `DISPROD_PATH` is not set in `~/.bashrc`, then add the following:
 export DISPROD_PATH=<path-to-DiSProD>
 ```
 and then `source ~/.bashrc`.
+
+Install the ROS-specific dependencies.
+
+```shell
+pip install -r $DISPROD_PATH/ros1-turtlebot/requirements.txt
+```
 
 In order to use PID as the low level controller, clone [this repository](https://github.com/itsmeashutosh43/pid-heron) inside `$DISPROD_PATH/ros1-turtlebot/catkin_ws/src`.
 
@@ -31,7 +39,7 @@ catkin_make
 cd devel && source setup.sh
 ```
 
-#### Lowering the simulation time
+## Lowering the simulation time
 > Note: Running DiSProD is a computationally extensive task, therefore we should lower the simulation time to see it working. 
 
 ```shell

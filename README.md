@@ -7,13 +7,13 @@
 ## Instructions
 
 #### Setting up repo
-```
+```shell
 git clone git@github.com:pecey/DiSProD.git
 cd DiSProD
 ```
 #### Installing dependencies
 
-```py
+```shell
 pip install -r requirements.txt
 ```
 
@@ -22,7 +22,7 @@ pip install -r requirements.txt
 We assume that an environment variable called `DISPROD_PATH` is set and points to this folder. Please set that before running any of the scripts.
 
 To run the planner on an environment:
-```py
+```shell
 python run_gym.py --alg=<alg_name> --env=<env_code>
 ```
 `alg_name` can be one of the following: `disprod`, `cem`, `mppi`, while `env_code` can be one of the following codes. As shooting algorithms are configured for discrete environments, running `cem` or `mppi` for (Discrete) Cartpole `cp` or (Discrete) Mountain Car `mc` will raise an Exception.
@@ -38,6 +38,8 @@ python run_gym.py --alg=<alg_name> --env=<env_code>
 | Continuous Mountain Car - Sparse Rewards  | `cmc_sp`        |
 | Continuous Mountain Car - High Dimension  | `cmc_hd`        |
 | Continuous CartPole - Hybrid              | `ccp_h`         |
+| Simple Env                                | `se`            |
+
 
 The other configurations available via CLI are:
 - `--seed`: Specify base seed to PRNG.
@@ -64,13 +66,13 @@ The scripts for running the experiments are in `slurm_scripts` and are geared to
 
 For example, to trigger the experiments that vary the noise levels on mountain car environment, 
 
-```sh
+```shell
 ./trigger_exp_noise.sh mountain_car
 ```
 
 The equivalent `python` command for running the same experiment is:
 
-```py
+```shell
 PYTHONPATH=. python run_gym.py --env=cmc --alg=${alg} --n_episodes=48 --alpha=${alpha_val} --render=False 
 ```
 
@@ -108,7 +110,7 @@ Using DiSProD on a new environment is straightforward.
 
 As the main loop to run experiments uses multiprocessing, if the inner loop fails, the outer loop still tries to execute and errors out with a dimensionality issue for the reward matrix. The error message looks something like:
 
-```sh
+```shell
 Traceback (most recent call last):
   File "run_gym.py", line 171, in <module>
     main(args)
