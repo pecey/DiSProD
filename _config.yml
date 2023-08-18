@@ -13,5 +13,5 @@ description: >- # this means to ignore newlines until "baseurl:"
 baseurl: "/DiSProD" # the subpath of your site, e.g. /blog
 url: "https://pecey.github.io/" # the base hostname & protocol for your site, e.g. http://example.com
 repo: "https://github.com/pecey/DiSProD"
-
+paper: "https://www.ijcai.org/proceedings/2023/0591.pdf"
 arxiv: https://arxiv.org/abs/2302.01491
